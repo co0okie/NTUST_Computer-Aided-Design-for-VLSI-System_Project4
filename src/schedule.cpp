@@ -1,6 +1,7 @@
 #include "schedule.hpp"
 
 #include <algorithm>
+#include <queue>
 #include <string>
 
 Result<Unit> check_resources(Netlist const &n, Resources const &r) {
@@ -88,8 +89,60 @@ std::int32_t lower_bound(Netlist const &n, Resources const &r) {
     for (auto const i : n.topo) bound = std::max(bound, early[i]);
     for (auto const k : OP_KIND_LIST) {
         auto const i = op_index(k);
-        if (r.limit[i] > 0)
-            bound = std::max(bound, (n.op_count[i] + r.limit[i] - 1) / r.limit[i]);
+        if (r.limit[i] > 0) {
+            auto const count = n.op_count[i];
+            bound = std::max(bound, count / r.limit[i] + (count % r.limit[i] != 0));
+        }
+    }
+    if (n.topo.empty()) return bound;
+
+    // With a horizon H, every operation must lie in [early[i], H - tail[i]],
+    // where tail counts the operations strictly after i on a longest path.
+    // Dropping precedence but keeping these windows and each kind's capacity
+    // is a relaxation: infeasibility proves that H is below the true optimum.
+    std::vector<std::int32_t> tail(n.size(), 0);
+    for (auto it = n.topo.rbegin(); it != n.topo.rend(); ++it)
+        for (auto const j : n.fanout.row(*it)) tail[*it] = std::max(tail[*it], tail[j] + 1);
+    std::array<std::vector<NodeId>, OP_KINDS> by_release;
+    for (auto const i : n.topo) by_release[op_index(n.kind[i])].push_back(i);
+    for (auto &ops : by_release)
+        std::sort(ops.begin(), ops.end(), [&](NodeId a, NodeId b) { return early[a] < early[b]; });
+
+    auto const feasible = [&](std::int32_t horizon) {
+        for (int k = 0; k < OP_KINDS; ++k) {
+            auto const &ops = by_release[k];
+            if (ops.empty()) continue;
+            if (r.limit[k] <= 0) return false; // normally rejected by check_resources
+            // Unit-time jobs with integral releases/deadlines admit an EDF
+            // schedule whenever any feasible schedule exists (exchange jobs
+            // in the first differing slot). Largest tail = earliest deadline.
+            std::priority_queue<std::int32_t> ready;
+            std::size_t next = 0;
+            std::int32_t t = early[ops.front()];
+            while (next < ops.size() || !ready.empty()) {
+                if (ready.empty()) t = std::max(t, early[ops[next]]);
+                while (next < ops.size() && early[ops[next]] <= t)
+                    ready.push(tail[ops[next++]]);
+                for (std::int32_t used = 0; used < r.limit[k] && !ready.empty(); ++used) {
+                    if (t > horizon - ready.top()) return false;
+                    ready.pop();
+                }
+                if (next == ops.size() && ready.empty()) break;
+                ++t;
+            }
+        }
+        return true;
+    };
+
+    // Serial topological scheduling is feasible within num_ops() steps for
+    // valid resources. Windows only expand with H, so binary search is valid.
+    // Cost: O(edges + ops log(ops)^2) time and O(nodes + ops) memory.
+    if (feasible(bound)) return bound;
+    auto upper = n.num_ops();
+    while (bound < upper) {
+        auto const middle = bound + (upper - bound) / 2;
+        if (feasible(middle)) upper = middle;
+        else bound = middle + 1;
     }
     return bound;
 }

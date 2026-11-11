@@ -44,5 +44,6 @@ std::vector<std::int32_t> asap(Netlist const &n);
 // (unlimited resources). Nodes with no path to a sink get `latency`.
 std::vector<std::int32_t> alap(Netlist const &n, std::int32_t latency);
 
-// Simple lower bound on the optimal latency: max(critical path, max_k ceil(ops_k / limit_k)).
+// Lower bound from critical path, resource counts, and per-kind unit-job
+// feasibility in ASAP/ALAP windows (precedence relaxed). O(m + n log² n).
 std::int32_t lower_bound(Netlist const &n, Resources const &r);

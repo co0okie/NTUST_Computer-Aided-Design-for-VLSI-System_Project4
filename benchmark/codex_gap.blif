@@ -1,0 +1,16 @@
+# Four-operation height-tie counterexample; resources 1 1 1.
+# Regenerate with python3 notes/generate_codex_gap.py.
+.model codex_gap
+.inputs a b
+.outputs n2 n3
+.names a n0
+0 1
+.names b n1
+0 1
+.names n0 n1 n2
+1- 1
+-1 1
+.names n1 a n3
+1- 1
+-1 1
+.end
