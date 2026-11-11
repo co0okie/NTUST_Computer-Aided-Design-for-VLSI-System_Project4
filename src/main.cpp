@@ -107,7 +107,12 @@ Result<Unit> run(Options const &o, Clock &clock) {
         if (o.stats)
             std::cerr << "mlrcs-stats mode=h latency=" << heuristic.latency
                       << " lower_bound=" << found.lower_bound << " first=" << found.first_latency
-                      << " passes=" << found.passes
+                      << " passes=" << found.passes << " window_vars=" << [&] {
+                             std::int64_t v = 0;
+                             for (std::int32_t i = 0; i < graph.n; ++i)
+                                 v += std::max(0, found.latency - 1 - found.tail[i] - found.head[i] + 1);
+                             return v;
+                         }()
                       << " ops=" << netlist.num_ops() << " time=" << clock.elapsed() << '\n';
         return Unit{};
     }
@@ -116,14 +121,18 @@ Result<Unit> run(Options const &o, Clock &clock) {
     ilp.gurobi_cl = gurobi_cl;
     ilp.keep_dir = o.keep_dir;
     ilp.threads = o.threads;
-    TRY(auto const exact,
-        exact_schedule(netlist, o.resources, heuristic, found.lower_bound, ilp, clock));
-    TRY_VOID(validate(netlist, o.resources, exact.schedule));
-    print_schedule(std::cout, netlist, exact.schedule, "ILP-based Scheduling Result");
+    auto const exact = exact_schedule(graph, found, ilp, clock);
+    auto const schedule = to_schedule(netlist, graph, exact.step);
+    auto const valid = validate(netlist, o.resources, schedule);
+    // Whatever happened in the solver, the heuristic schedule is always a legal answer
+    auto const &final_schedule = valid ? schedule : heuristic;
+    print_schedule(std::cout, netlist, final_schedule, "ILP-based Scheduling Result");
     if (o.stats)
-        std::cerr << "mlrcs-stats mode=e latency=" << exact.schedule.latency
+        std::cerr << "mlrcs-stats mode=e latency=" << final_schedule.latency
                   << " heuristic=" << heuristic.latency << " lower_bound=" << exact.lower_bound
-                  << " status=" << exact_status_name(exact.status) << " vars=" << exact.num_vars
+                  << " status=" << (valid ? exact_status_name(exact.status) : "invalid")
+                  << " vars=" << exact.num_vars << " solves=" << exact.solves
+                  << " note=" << (exact.note.empty() ? "-" : exact.note)
                   << " ops=" << netlist.num_ops() << " time=" << clock.elapsed() << '\n';
     return Unit{};
 }

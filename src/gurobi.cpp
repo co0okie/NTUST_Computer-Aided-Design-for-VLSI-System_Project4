@@ -184,6 +184,12 @@ Result<GurobiResult> run_gurobi(std::string const &gurobi_cl, GurobiJob const &j
         return err("gurobi_cl exited with status " + std::to_string(exit.code) + ", see " +
                    job.log_file);
 
+    auto const bound_at = log.rfind("best bound ");
+    if (bound_at != std::string::npos) {
+        result.best_bound = std::strtod(log.c_str() + bound_at + 11, nullptr);
+        result.has_bound = true;
+    }
+
     std::ifstream sol(job.result_file);
     if (!sol) return result; // no solution file: no feasible solution found
     for (std::string line; std::getline(sol, line);) {

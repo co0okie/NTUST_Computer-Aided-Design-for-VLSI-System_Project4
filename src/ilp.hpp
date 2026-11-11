@@ -2,37 +2,42 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "clock.hpp"
-#include "netlist.hpp"
+#include "heuristic.hpp"
+#include "opgraph.hpp"
 #include "result.hpp"
-#include "schedule.hpp"
 
 struct IlpOptions {
     std::string gurobi_cl;   // from find_gurobi_cl()
     std::string keep_dir;    // keep the LP/solution/log files here; empty: temporary, deleted
     int threads = 0;         // Gurobi Threads parameter; 0 = Gurobi's default
-    std::int64_t max_vars = 3'000'000; // skip the ILP if the model would be larger
+    std::int64_t max_vars = 400'000; // do not build a model larger than this
 };
 
 // How the reported schedule was obtained
 enum class ExactStatus {
-    Optimal,    // Gurobi proved optimality
-    Bound,      // the heuristic already meets a lower bound; no ILP needed
-    TimeLimit,  // Gurobi ran out of time; best schedule found so far
-    TooLarge,   // model above max_vars; heuristic schedule returned unchanged
+    Optimal,    // proven optimal by the ILP (found or matched a bound)
+    Bound,      // the heuristic already meets the combinatorial lower bound; no ILP needed
+    TimeLimit,  // ran out of time; best schedule found so far
+    TooLarge,   // model above max_vars; best schedule found so far
 };
 
 char const *exact_status_name(ExactStatus s);
 
 struct ExactResult {
-    Schedule schedule;
+    std::vector<std::int32_t> step; // per op index
+    std::int32_t latency = 0;
     ExactStatus status = ExactStatus::Optimal;
     std::int32_t lower_bound = 0;
-    std::int64_t num_vars = 0; // binary variables in the ILP (0 if not built)
+    std::int64_t num_vars = 0; // variables of the last ILP built
+    std::int32_t solves = 0;   // Gurobi runs
+    std::string note;          // solver trouble that was survived, for --stats
 };
 
-// Baseline time-indexed ILP. The heuristic schedule supplies the latency upper bound (which
-// limits every operation's [ASAP, ALAP] window) and a MIP start.
-Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedule const &heuristic,
-                                   std::int32_t known_bound, IlpOptions const &options, Clock const &clock);
+// Starts from the heuristic schedule (latency U) and asks Gurobi whether a schedule with horizon
+// U - 1 exists, repeating until the answer is no (U is optimal) or U meets the lower bound.
+// Never fails: on any solver trouble the best schedule found so far is returned.
+ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
+                           IlpOptions const &options, Clock const &clock);

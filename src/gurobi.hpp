@@ -55,6 +55,8 @@ struct GurobiResult {
     bool killed = false; // had to be killed; there is no solution
     bool has_solution = false;
     double objective = 0;
+    double best_bound = 0; // from the log's final "best bound" (valid when has_bound)
+    bool has_bound = false;
     std::unordered_map<std::string, double> value; // nonzero variables from the solution file
 };
 
