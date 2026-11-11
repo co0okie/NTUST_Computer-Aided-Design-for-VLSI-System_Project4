@@ -45,5 +45,6 @@ std::vector<std::int32_t> asap(Netlist const &n);
 std::vector<std::int32_t> alap(Netlist const &n, std::int32_t latency);
 
 // Lower bound from critical path, resource counts, and per-kind unit-job
-// feasibility in ASAP/ALAP windows (precedence relaxed). O(m + n log² n).
+// feasibility in precedence/resource-work windows (precedence relaxed).
+// O(m + n log n) EDF plus an optional memory/work-capped bitset closure pass.
 std::int32_t lower_bound(Netlist const &n, Resources const &r);

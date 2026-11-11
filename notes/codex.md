@@ -37,3 +37,23 @@ Baseline 對照：全 76 case 的 heuristic，以 tools/eval.py clean build、CP
 ### 結論與下一步
 
 低成本時間窗放鬆對課程 benchmark 很有效，先前大型模型困難的一大部分其實可由下界直接處理。接著針對其餘 19 case，測試用祖先/後繼集合的資源工作量加強時間窗；同時以 exact 子集正式評估確認 bound status 與 fallback。完整 exact suite 尚未跑，不能將 57 稱為全 suite 實測 exact optimal 數（目前是經 checker 驗證的 heuristic 與已驗證 bound 相等數）。
+
+### 第一輪 exact 子集（6 case）
+
+全部 checker OK：cm138a:1,1,1（10）、x2:2,2,1（14）、t481:1,1,1（883）均 `bound`；codex_gap 為 `optimal=3`。C1355:2,2,1 為 `timelimit`，保留 185，LB=167，51.39 秒；big3:8,8,4 為 `too_large`，保留 1692，LB=1687，0.07 秒。總 runtime 51.54 秒。這支持第一輪能快速避開已證明 case，但沒有解決剩餘大型 ILP gap。
+
+## 第二輪：集合工作量與單次 EDF
+
+動機：4-node gap 的兩個 NOT 必須同時先於 join；單純路徑 early 忽略 join 的共同祖先工作量。對每個 node i，祖先種類 k 的數量 A_ik 給出 early_i >= 1+ceil(A_ik/R_k)；後繼集合對稱給出 tail_i >= ceil(D_ik/R_k)。每個集合只計一次共享祖先，不能簡單加總前驅的 bound。以 operation-index bitset 計算 closure，單方向矩陣重用；設 64 MiB 與估算 word work 上限，超過時回退第一輪時間窗，避免最壞情況超出預算。
+
+在此輪實作期間發現 claude 已提交 `9e7a4cd`，含 recursive resource heads/tails 與 Jackson bound。其模型提醒我們：所有 deadline 都是 H-tail，EDF 的順序其實不依賴 H；因此第一輪二分搜尋可改為一次 EDF，取 max(t+tail)，得到相同 bound。此簡化的靈感來源明確記為 claude@9e7a4cd；實作由 codex 自行改寫，不複製其程式。此輪保留較簡單的 closure count 作獨立 ablation，與 claude recursive tail 方法區分。
+
+### 第二輪初步結果
+
+closure-count + single-pass EDF 全 76 heuristic case checker OK、latency 不變。相較第一輪，8 個 bound 再提升，直接證明數 57→59：新增 i8:2,2,1（371）、C6288:1,1,1（1622）。總 runtime 0.84→1.21 秒，clean build 12.9 秒。相較 baseline，依然只改善 bound，不應宣稱 heuristic 品質變好。
+
+獨立 exact-DP 19,267 case 再次全部通過，並加入反轉 node ID 的不變性檢查；tight 從 19,252 增到 19,263。另驗證 65/129 node bitset 跨 word、25,000 node 的記憶體 cap fallback、6,000 node width-300 密集 DAG 的工作量 cap fallback。15,000 operation 的矩陣及種類遮罩約 26.90 MiB，node index 另約 0.12 MiB；兩個方向重用同一矩陣。實際 word 工作量有雙向與種類計數常數倍，100M 門檻是預算估算，非硬性 wall-clock 保證。
+
+重現故障測試已保存 notes/check_exact_fallback.py，可用 --binary 指定編譯後程式、--gurobi 指定真 solver（可選）。15 項包含故障回退、較佳 incumbent、optimal bound 一致性、缺 solver 非零退出與真實 solver 均通過。
+
+報告素材：notes/summarize_codex.py 由 eval TSV 生成 codex-summary.tsv 與 codex-bound-ablation.svg。h/LB 幾何平均是最優性 gap 的上界指標，並非研究規範中的 h/best-known，兩者不可混用。

@@ -1,0 +1,4 @@
+method	cases	proven_by_bound	runtime_seconds	geomean_h_over_lb
+Baseline	76	27	0.72	1.036427
+EDF windows	76	57	0.84	1.010089
+Closure + EDF	76	59	1.21	1.008543

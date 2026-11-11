@@ -3,7 +3,8 @@
 //   c++ -std=c++17 -O2 -Isrc notes/check_window_bound.cpp src/schedule.cpp -o build/check_window_bound
 //   taskset -c 4 build/check_window_bound
 // Covers all ordered DAGs through four operations, every 3-kind assignment,
-// three capacity vectors, 3,000 deterministic random larger DAGs, and no-op input.
+// three capacity vectors, 3,000 deterministic random larger DAGs, no-op input,
+// reversed operation IDs, closure word boundaries and memory/work fallbacks.
 // The DP enumerates all capacity-feasible subsets of currently ready operations;
 // it does not use the EDF algorithm or its time-window relaxation.
 
@@ -40,6 +41,58 @@ Netlist make(int m, std::vector<unsigned> const& pred, std::vector<int> const& k
     }
     return n;
 }
+
+// BLIF definition order need not be topological; exercise that representation.
+Netlist reverse_ids(Netlist const &n) {
+    auto remap = [&](NodeId i) { return i == 0 ? 0 : n.size() - i; };
+    Netlist reversed;
+    reversed.name.resize(n.size());
+    reversed.kind.resize(n.size());
+    reversed.inputs = {0};
+    reversed.op_count = n.op_count;
+    std::vector<std::vector<NodeId>> in(n.size()), out(n.size());
+    for (NodeId i = 0; i < n.size(); ++i) {
+        reversed.kind[remap(i)] = n.kind[i];
+        for (auto j : n.fanin.row(i)) in[remap(i)].push_back(remap(j));
+        for (auto j : n.fanout.row(i)) out[remap(i)].push_back(remap(j));
+    }
+    for (auto i : n.topo) reversed.topo.push_back(remap(i));
+    auto flatten = [](auto const &rows, Csr &csr) {
+        csr.offset.push_back(0);
+        for (auto const &row : rows) {
+            csr.item.insert(csr.item.end(), row.begin(), row.end());
+            csr.offset.push_back(static_cast<std::int32_t>(csr.item.size()));
+        }
+    };
+    flatten(in, reversed.fanin);
+    flatten(out, reversed.fanout);
+    return reversed;
+}
+
+// A chain with redundant edges to the previous `width` nodes has optimum m
+// for any positive capacity. This supplies large exact cases without subset DP.
+Netlist chain(int m, int width) {
+    Netlist n;
+    n.name.resize(m + 1);
+    n.kind.assign(m + 1, Kind::And);
+    n.kind[0] = Kind::Pi;
+    n.inputs = {0};
+    n.op_count[0] = m;
+    n.fanin.offset = {0, 0};
+    n.fanout.offset = {0};
+    for (int i = 1; i <= m; ++i) {
+        n.topo.push_back(i);
+        if (i == 1) n.fanin.item.push_back(0);
+        for (int j = std::max(1, i - width); j < i; ++j) n.fanin.item.push_back(j);
+        n.fanin.offset.push_back(static_cast<std::int32_t>(n.fanin.item.size()));
+    }
+    for (int i = 0; i <= m; ++i) {
+        if (i == 0) n.fanout.item.push_back(1);
+        else for (int j = i + 1; j <= std::min(m, i + width); ++j) n.fanout.item.push_back(j);
+        n.fanout.offset.push_back(static_cast<std::int32_t>(n.fanout.item.size()));
+    }
+    return n;
+}
 int optimum(std::vector<unsigned> const& pred, std::vector<int> const& kinds, Resources const& r) {
     unsigned const end = 1U << pred.size();
     std::vector<int> dp(end, 1000); dp[0]=0;
@@ -59,6 +112,10 @@ int main() {
     auto test=[&](auto const& pred, auto const& kinds, Resources const& r) {
         auto const n=make(static_cast<int>(pred.size()),pred,kinds);
         auto const bound=lower_bound(n,r);
+        if (lower_bound(reverse_ids(n), r) != bound) {
+            std::cerr << "bound depends on operation ID order\n";
+            std::abort();
+        }
         auto const opt=optimum(pred,kinds,r);
         auto const early=asap(n); int old=0;
         for(auto i:n.topo)old=std::max(old,early[i]);
@@ -88,5 +145,12 @@ int main() {
         test(pred,kinds,Resources{{1+static_cast<int>(rng()%3),1+static_cast<int>(rng()%3),1+static_cast<int>(rng()%3)}});
     }
     test(std::vector<unsigned>{}, std::vector<int>{}, Resources{{0,0,0}});
+    for (auto const test_case : {std::pair<int, int>{65, 1}, {129, 3}, {25000, 1}, {6000, 300}}) {
+        auto const n = chain(test_case.first, test_case.second);
+        if (lower_bound(n, Resources{{1, 0, 0}}) != test_case.first) {
+            std::cerr << "word-boundary/fallback chain failed\n";
+            std::abort();
+        }
+    }
     std::cout<<"checked="<<checked<<" improved="<<improved<<" tight="<<tight<<"\n";
 }

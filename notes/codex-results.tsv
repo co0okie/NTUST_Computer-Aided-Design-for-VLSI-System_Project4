@@ -155,3 +155,87 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-11 15:13	b91a48b+dirty	aoi_big3:8,8,4	h	1692	1687			0.07	OK	edf-window-bound
 2026-11-11 15:13	b91a48b+dirty	aoi_cm138a:1,1,1	e	10	10	10	bound	0.02	OK	edf-window-bound-robust-exact
 2026-11-11 15:13	b91a48b+dirty	aoi_x2:2,2,1	e	14	14	14	bound	0.02	OK	edf-window-bound-robust-exact
+2026-11-11 15:14	b91a48b+dirty	aoi_C1355:2,2,1	e	185	167	185	timelimit	51.39	OK	edf-window-bound-robust-exact
+2026-11-11 15:14	b91a48b+dirty	aoi_t481:1,1,1	e	883	883	883	bound	0.02	OK	edf-window-bound-robust-exact
+2026-11-11 15:14	b91a48b+dirty	aoi_big3:8,8,4	e	1692	1687	1692	too_large	0.07	OK	edf-window-bound-robust-exact
+2026-11-11 15:14	b91a48b+dirty	codex_gap:1,1,1	e	3	3	4	optimal	0.02	OK	edf-window-bound-robust-exact
+2026-11-11 15:16	b503259+dirty	aoi_sample01:1,1,1	h	3	3			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_sample01:2,2,1	h	3	3			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_sample01:3,2,2	h	3	3			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_sample01:8,8,4	h	3	3			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_sample02:1,1,1	h	5	5			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_sample02:2,2,1	h	4	4			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_sample02:3,2,2	h	4	4			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_sample02:8,8,4	h	4	4			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cm138a:1,1,1	h	10	10			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cm138a:2,2,1	h	6	6			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cm138a:3,2,2	h	6	6			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cm138a:8,8,4	h	3	3			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_x2:1,1,1	h	16	16			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_x2:2,2,1	h	14	14			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_x2:3,2,2	h	8	8			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_x2:8,8,4	h	6	6			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_z4ml:1,1,1	h	35	35			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_z4ml:2,2,1	h	18	18			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_z4ml:3,2,2	h	13	13			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_z4ml:8,8,4	h	8	8			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i3:1,1,1	h	66	66			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i3:2,2,1	h	33	33			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i3:3,2,2	h	33	33			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i3:8,8,4	h	9	9			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i4:1,1,1	h	78	78			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i4:2,2,1	h	39	39			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i4:3,2,2	h	27	27			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i4:8,8,4	h	11	11			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i2:1,1,1	h	33	33			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i2:2,2,1	h	17	17			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i2:3,2,2	h	17	17			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i2:8,8,4	h	7	7			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_9symml:1,1,1	h	112	112			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_9symml:2,2,1	h	57	57			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_9symml:3,2,2	h	39	39			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_9symml:8,8,4	h	17	17			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cht:1,1,1	h	112	112			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cht:2,2,1	h	56	56			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cht:3,2,2	h	38	38			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_cht:8,8,4	h	14	14			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C1355:1,1,1	h	285	280			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C1355:2,2,1	h	185	178			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C1355:3,2,2	h	143	140			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C1355:8,8,4	h	50	46			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_alu4:1,1,1	h	364	364			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_alu4:2,2,1	h	183	183			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_alu4:3,2,2	h	183	183			0.00	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_alu4:8,8,4	h	48	48			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_t481:1,1,1	h	883	883			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_t481:2,2,1	h	443	443			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_t481:3,2,2	h	296	296			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_t481:8,8,4	h	113	113			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i8:1,1,1	h	738	738			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i8:2,2,1	h	371	371			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i8:3,2,2	h	248	248			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_i8:8,8,4	h	95	94			0.01	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C6288:1,1,1	h	1622	1622			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C6288:2,2,1	h	961	960			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C6288:3,2,2	h	812	812			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_C6288:8,8,4	h	258	258			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_des:1,1,1	h	1673	1673			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_des:2,2,1	h	837	837			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_des:3,2,2	h	669	661			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_des:8,8,4	h	210	210			0.02	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big1:1,1,1	h	3617	3616			0.03	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big1:2,2,1	h	1810	1809			0.03	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big1:3,2,2	h	1809	1809			0.03	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big1:8,8,4	h	454	453			0.03	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big2:1,1,1	h	8274	7512			0.07	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big2:2,2,1	h	4144	3758			0.07	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big2:3,2,2	h	2929	2508			0.07	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big2:8,8,4	h	1039	945			0.06	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big3:1,1,1	h	13507	13427			0.12	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big3:2,2,1	h	6756	6718			0.12	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big3:3,2,2	h	6718	6718			0.12	OK	closure-count-single-edf
+2026-11-11 15:16	b503259+dirty	aoi_big3:8,8,4	h	1692	1687			0.12	OK	closure-count-single-edf
+2026-11-11 15:17	b503259+dirty	codex_gap:1,1,1	h	4	3			0.00	OK	closure-count-single-edf
+2026-11-11 15:17	b503259+dirty	codex_gap:1,1,1	e	3	3	4	optimal	0.02	OK	closure-count-single-edf
+2026-11-11 15:17	b503259+dirty	aoi_sample01:1,1,1	e	3	3	3	bound	0.02	OK	closure-count-single-edf-exact
+2026-11-11 15:17	b503259+dirty	aoi_sample01:2,2,1	e	3	3	3	bound	0.02	OK	closure-count-single-edf-exact

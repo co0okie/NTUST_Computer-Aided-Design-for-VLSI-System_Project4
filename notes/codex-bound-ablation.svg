@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="330" viewBox="0 0 760 330">
+<rect width="760" height="330" fill="white"/>
+<g font-family="sans-serif" fill="#172334">
+<text x="30" y="35" font-size="21">Lower-bound ablation: unchanged heuristic, 76 cases</text>
+<text x="30" y="65" font-size="14">Cases with a checker-validated heuristic matching the lower bound</text>
+<text x="30" y="118" font-size="15">Baseline</text>
+<rect x="185" y="95" width="456" height="32" fill="#ecf0f5"/>
+<rect x="185" y="95" width="162" height="32" fill="#256a98"/>
+<text x="660" y="118" font-size="17">27 / 76</text>
+<text x="30" y="179" font-size="15">EDF windows</text>
+<rect x="185" y="156" width="456" height="32" fill="#ecf0f5"/>
+<rect x="185" y="156" width="342" height="32" fill="#256a98"/>
+<text x="660" y="179" font-size="17">57 / 76</text>
+<text x="30" y="240" font-size="15">Closure + EDF</text>
+<rect x="185" y="217" width="456" height="32" fill="#ecf0f5"/>
+<rect x="185" y="217" width="354" height="32" fill="#256a98"/>
+<text x="660" y="240" font-size="17">59 / 76</text>
+<text x="30" y="300" font-size="12">Source: codex-results.tsv. This chart compares bounds, not heuristic improvements.</text>
+</g></svg>
