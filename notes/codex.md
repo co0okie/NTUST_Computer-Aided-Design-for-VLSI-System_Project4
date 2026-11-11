@@ -57,3 +57,35 @@ closure-count + single-pass EDF 全 76 heuristic case checker OK、latency 不�
 重現故障測試已保存 notes/check_exact_fallback.py，可用 --binary 指定編譯後程式、--gurobi 指定真 solver（可選）。15 項包含故障回退、較佳 incumbent、optimal bound 一致性、缺 solver 非零退出與真實 solver 均通過。
 
 報告素材：notes/summarize_codex.py 由 eval TSV 生成 codex-summary.tsv 與 codex-bound-ablation.svg。h/LB 幾何平均是最優性 gap 的上界指標，並非研究規範中的 h/best-known，兩者不可混用。
+
+### 後續 ILP 實驗設計（尚未實作）
+
+現有 precedence 只有期望 start(v)-start(u)>=1：fractional x 可把一部分 mass 提前、另一部分拖到很晚，平均時間合法但不代表每個閾值都符合 precedence。候選替代模型為 cumulative z_it=1 iff operation i 已在 t 結束。單調性 z_i,t-1<=z_it；precedence z_vt<=z_u,t-1；每種資源 sum_i(z_it-z_i,t-1)<=R_k。窗外 z=0/1 視為常數，減少變數與係數；整數可行排程與原模型等價。此模型在 relaxation 上蘊含目前期望 start precedence，但反向不成立（可用 fractional witness 設計動機實驗）。
+
+先做固定 horizon H=heuristic-1 feasibility：不可行即證明 heuristic 最佳，可行則解碼更短 schedule，再降低 H。風險：失去原 heuristic 的可行 MIP start，較多 precedence rows，且若只嘗試 H=UB-1 未成功無法提升全域 LB。應先在 C1355 四組資源上分別測量 LP relaxation、rows/nonzeros、solve time，再決定是否整合；大圖不直接套用，以免重演 presolve 爆炸。亦可在 UB horizon 上保留優化 makespan 模式做對照。
+
+因 claude 的新方向已包含更強 resource tails 與 heuristic unlock priority，codex 下一輪優先保持自己的 baseline heuristic 作 ILP ablation，避免兩路同時重複調 heuristic。
+
+### 第二輪完整 exact suite 與研究指標
+
+完整 76-case `-e` 全數 checker OK（clean build 12.5 秒），59 `bound` + 1 `optimal` = **60/76 證明最佳**，4 `timelimit`、12 `too_large`，總 runtime **227.37 秒**。C1355:8,8,4 從 heuristic 50 改善至 48，但未證明最佳（LB=46）；i8:8,8,4 於 16.71 秒證明 optimum=95，已提高 shared/best.tsv 的 lower bound。其餘 C1355 三組逾時保留合法 heuristic。所有 case -e <= -h，沒有 checker failure 或外部 60 秒 timeout。
+
+資料版本：第二輪 eval 列標 `b503259+dirty`，其 source snapshot 與後續 commit `31d3c14` 相同（僅 header 說明文字時點可能不同）；完整 e 在評估中提交 source，因此 TSV 不改寫歷史 commit 字串。
+
+以 2026-11-11 15:21:48 PST 的 shared/best.tsv 為比較基準（含 claude@b522503 的改進），規範指標如下：
+
+| 指標 | 數值 |
+|---|---:|
+| -h 全 76 case latency/best-known 幾何平均 | 1.007498 |
+| -h 總 runtime | 1.21 s |
+| -e optimal 或 bound | 60/76 |
+| -e 未證明 16 case latency/best-known 幾何平均 | 1.033480 |
+| -e 總 runtime | 227.37 s |
+
+原始結果 codex-results.tsv，指標 codex-metrics.json，比較基準快照 codex-best-snapshot.tsv。best-known 是三路持續改變的紀錄，因此需要保存快照才能重現比例。Baseline、EDF、closure 三種的 runtime 比較來自同一工具、相同 case/資源；不能將其他路線後來的 best-known 當成 baseline 當時已知值。
+
+### 下一輪交接
+
+先讀 shared/questions.md 的 Q4 與 claude@b522503：對方 heuristic+recursive tail 已直接證明 67/76，big2/big3 改善遠大於本輪，應保留其成果供後續整合。但 codex 此輪已完成獨立的下界 ablation、robust fallback、完整 exact 實測與 tiny oracle，不要抹除這些對照數據。
+
+下一輪優先在 C1355 上試 fixed-horizon cumulative precedence ILP，先測 LP relaxation 與模型 nonzeros，避免只把完整 suite 再跑一次。若採用 claude heuristic，另開清楚的對照組，並重新尋找/確認自製 h/e 差異測資仍成立。提交用 3 頁 PDF 尚未製作，現有 figures/table/gap 分析已備妥，可待演算法收斂後排版。

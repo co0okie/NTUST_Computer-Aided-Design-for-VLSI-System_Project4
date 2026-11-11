@@ -1,0 +1,77 @@
+case	best_latency	lower_bound	source	note
+aoi_sample01:1,1,1	3	3	main@d8fb11f list_schedule	proven by bound
+aoi_sample01:2,2,1	3	3	main@d8fb11f list_schedule	proven by bound
+aoi_sample01:3,2,2	3	3	main@d8fb11f list_schedule	proven by bound
+aoi_sample01:8,8,4	3	3	main@d8fb11f list_schedule	proven by bound
+aoi_sample02:1,1,1	5	5	main@d8fb11f list_schedule	proven by bound
+aoi_sample02:2,2,1	4	4	main@d8fb11f list_schedule	proven by bound
+aoi_sample02:3,2,2	4	4	main@d8fb11f list_schedule	proven by bound
+aoi_sample02:8,8,4	4	4	main@d8fb11f list_schedule	proven by bound
+aoi_cm138a:1,1,1	10	10	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_cm138a:2,2,1	6	6	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_cm138a:3,2,2	6	6	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_cm138a:8,8,4	3	3	main@d8fb11f list_schedule	proven by bound
+aoi_x2:1,1,1	16	16	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_x2:2,2,1	14	14	main@d8fb11f list_schedule	proven by bound
+aoi_x2:3,2,2	8	8	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_x2:8,8,4	6	6	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_z4ml:1,1,1	35	35	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_z4ml:2,2,1	18	18	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_z4ml:3,2,2	13	13	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_z4ml:8,8,4	8	8	main@d8fb11f list_schedule	proven by bound
+aoi_i3:1,1,1	66	66	main@d8fb11f list_schedule	proven by bound
+aoi_i3:2,2,1	33	33	main@d8fb11f list_schedule	proven by bound
+aoi_i3:3,2,2	33	33	main@d8fb11f list_schedule	proven by bound
+aoi_i3:8,8,4	9	9	main@d8fb11f list_schedule	proven by bound
+aoi_i4:1,1,1	78	78	main@d8fb11f list_schedule	proven by bound
+aoi_i4:2,2,1	39	39	main@d8fb11f list_schedule	proven by bound
+aoi_i4:3,2,2	27	27	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_i4:8,8,4	11	11	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_i2:1,1,1	33	33	main@d8fb11f list_schedule	proven by bound
+aoi_i2:2,2,1	17	17	main@d8fb11f list_schedule	proven by bound
+aoi_i2:3,2,2	17	17	main@d8fb11f list_schedule	proven by bound
+aoi_i2:8,8,4	7	7	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_9symml:1,1,1	112	112	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_9symml:2,2,1	57	57	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_9symml:3,2,2	39	39	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_9symml:8,8,4	17	17	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_cht:1,1,1	112	112	main@d8fb11f list_schedule	proven by bound
+aoi_cht:2,2,1	56	56	main@d8fb11f list_schedule	proven by bound
+aoi_cht:3,2,2	38	38	main@d8fb11f list_schedule	proven by bound
+aoi_cht:8,8,4	14	14	main@d8fb11f list_schedule	proven by bound
+aoi_C1355:1,1,1	280	280	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count; claude@b522503@b522503 -h (latency)	proven optimal
+aoi_C1355:2,2,1	179	178	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count; claude@b522503@b522503 -h (latency)	
+aoi_C1355:3,2,2	141	140	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	
+aoi_C1355:8,8,4	48	46	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count; claude@b522503@b522503 -h (latency)	
+aoi_alu4:1,1,1	364	364	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_alu4:2,2,1	183	183	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_alu4:3,2,2	183	183	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_alu4:8,8,4	48	48	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_t481:1,1,1	883	883	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_t481:2,2,1	443	443	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_t481:3,2,2	296	296	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_t481:8,8,4	113	113	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_i8:1,1,1	738	738	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_i8:2,2,1	371	371	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count	resource-work window bound; checker-validated h
+aoi_i8:3,2,2	248	248	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_i8:8,8,4	95	95	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 -e --threads 4	checker-validated full exact suite; notes/codex-results.tsv
+aoi_C6288:1,1,1	1622	1622	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count	resource-work window bound; checker-validated h
+aoi_C6288:2,2,1	961	961	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (bound)	proven optimal
+aoi_C6288:3,2,2	812	812	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_C6288:8,8,4	258	258	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_des:1,1,1	1673	1673	main@d8fb11f list_schedule	proven by bound
+aoi_des:2,2,1	837	837	main@d8fb11f list_schedule	proven by bound
+aoi_des:3,2,2	662	661	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	
+aoi_des:8,8,4	210	210	main@d8fb11f list_schedule	proven by bound
+aoi_big1:1,1,1	3616	3616	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	proven optimal
+aoi_big1:2,2,1	1809	1809	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	proven optimal
+aoi_big1:3,2,2	1809	1809	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_big1:8,8,4	453	453	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	proven optimal
+aoi_big2:1,1,1	7518	7512	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count; claude@b522503@b522503 -h (latency)	
+aoi_big2:2,2,1	3764	3758	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count; claude@b522503@b522503 -h (latency)	
+aoi_big2:3,2,2	2520	2508	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; codex@31d3c14 closure-count; claude@b522503@b522503 -h (latency)	
+aoi_big2:8,8,4	948	945	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	
+aoi_big3:1,1,1	13427	13427	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	proven optimal
+aoi_big3:2,2,1	6718	6718	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	proven optimal
+aoi_big3:3,2,2	6718	6718	main@d8fb11f list_schedule; codex@b503259 EDF-window bound	bound strengthened; checker-validated h in notes/codex-results.tsv
+aoi_big3:8,8,4	1687	1687	main@d8fb11f list_schedule; codex@b503259 EDF-window bound; claude@b522503@b522503 -h (latency)	proven optimal

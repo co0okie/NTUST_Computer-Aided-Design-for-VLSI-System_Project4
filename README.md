@@ -30,3 +30,26 @@ Optional arguments:
 | `--threads N` | Gurobi's choice | Gurobi threads |
 | `--keep DIR` | (none) | Keep the ILP model, MIP start, solution and Gurobi log in `DIR` |
 | `--stats` | off | Print one line of statistics (latency, lower bound, ILP status, time) to stderr |
+
+Algorithm notes:
+
+- The heuristic uses list scheduling by longest remaining path, then BLIF definition order.
+- A resource-window lower bound uses per-kind unit-job EDF scheduling. A memory/work-capped
+  ancestor/descendant analysis strengthens the windows; larger inputs use path-only windows.
+- The exact model uses time-indexed binary variables, precedence and per-cycle resource
+  constraints, with the heuristic as upper bound and MIP start. If its latency meets the lower
+  bound, no model is needed. Models above 1,000,000 binaries or 128 MiB of LP text are skipped.
+- Solver failures, timeouts, or invalid candidate schedules retain the validated heuristic.
+  A successful run can therefore be feasible without proving optimality; inspect `--stats`.
+- For disk-backed scratch space, set `TMPDIR` or use `--keep DIR`.
+
+Small reproducible counterexample (four operations):
+
+```
+./build/mlrcs -h benchmark/codex_gap.blif 1 1 1
+./build/mlrcs -e benchmark/codex_gap.blif 1 1 1
+```
+
+The heuristic has latency 4; Gurobi proves latency 3. Regenerate the input with
+`python3 notes/generate_codex_gap.py`. Research data, validation scripts and report figures are
+in `notes/`; only CMake and `src/` are needed to build the program.

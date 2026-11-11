@@ -1,0 +1,11 @@
+{
+  "source": "codex@31d3c14",
+  "comparison": "shared/best.tsv snapshot 2026-11-11T15:21:48.229054",
+  "h_cases": 76,
+  "h_geo_latency_over_best": 1.0074980807171556,
+  "h_runtime": 1.21,
+  "e_cases": 76,
+  "e_proven": 60,
+  "e_unproven_geo_latency_over_best": 1.0334798954683302,
+  "e_runtime": 227.37
+}
