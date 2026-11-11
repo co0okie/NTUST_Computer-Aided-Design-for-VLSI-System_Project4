@@ -1,0 +1,98 @@
+{
+  "table_of_contents": [
+    {
+      "title": "CAD Design Project 4 \u2013 Resource-Constrained Scheduling\nDue: 23:59, Nov. 25, 2026",
+      "heading_level": null,
+      "page_id": 0,
+      "polygon": [
+        [
+          123.25999450683594,
+          74.83953857421875
+        ],
+        [
+          472.0978698730469,
+          74.83953857421875
+        ],
+        [
+          472.0978698730469,
+          106.8795166015625
+        ],
+        [
+          123.25999450683594,
+          106.8795166015625
+        ]
+      ]
+    }
+  ],
+  "page_stats": [
+    {
+      "page_id": 0,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          109
+        ],
+        [
+          "Line",
+          28
+        ],
+        [
+          "ListItem",
+          7
+        ],
+        [
+          "Text",
+          2
+        ],
+        [
+          "Picture",
+          2
+        ],
+        [
+          "SectionHeader",
+          1
+        ],
+        [
+          "ListGroup",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    },
+    {
+      "page_id": 1,
+      "text_extraction_method": "pdftext",
+      "block_counts": [
+        [
+          "Span",
+          131
+        ],
+        [
+          "Line",
+          51
+        ],
+        [
+          "Code",
+          1
+        ]
+      ],
+      "block_metadata": {
+        "llm_request_count": 0,
+        "llm_error_count": 0,
+        "llm_tokens_used": 0,
+        "previous_text": "",
+        "previous_type": "",
+        "previous_order": 0
+      }
+    }
+  ],
+  "debug_data_path": "debug_data/Project04"
+}
