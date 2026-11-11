@@ -54,7 +54,7 @@ Project 4 的評分方式還沒公布，以下參考 Project 2 的評分標準�
 因此優先順序是：
 1. **穩健**：任何合法輸入、任何資源限制，都要在時限內輸出合法排程，不能 crash，也不能逾時。
 2. **正確**：`-e` 在能證明最佳的情況下，輸出的確實是最佳解。
-3. **品質**：`-h` 的 latency 越低越好；`-e` 在時限內證明最佳的 case 越多越好；兩者的 runtime 越短越好。
+3. **品質**：目標只有 minimize latency。`-h` 的 latency 越低越好；`-e` 在時限內證明最佳的 case 越多越好，證明不了時 latency 也要盡量低。runtime 只是 60 秒的硬限制，不是額外的目標；在時限內，時間可以盡量拿來換取更低的 latency。
 
 在助教回覆之前，先假設隱藏測資的規模與 `benchmark/` 相當（最大約 1.5 萬個 operation）。即使如此，仍要考慮最壞情況的複雜度與記憶體，至少不能 crash 或逾時。
 
@@ -63,8 +63,9 @@ Project 4 的評分方式還沒公布，以下參考 Project 2 的評分標準�
 指標以 `tools/eval.py` 的預設 suite 為準：19 個電路 × 4 組資源限制（`--list`），`big4` 與 `big3` 內容完全相同，所以不列入。
 
 - **best known**：每個 case 目前已知的最佳 latency 與最強的 lower bound，記錄在 `shared/best.tsv`（見下方），三條路線共同維護。
-- `-h`：所有 case 的 `latency / best_known` 取幾何平均，越接近 1 越好；另外記錄總 runtime。
-- `-e`：證明最佳（`status` 為 `optimal` 或 `bound`）的 case 數、未證明 case 的 `latency / best_known`，以及總 runtime。
+- `-h`：所有 case 的 `latency / best_known` 取幾何平均，越接近 1 越好。
+- `-e`：證明最佳（`status` 為 `optimal` 或 `bound`）的 case 數，以及未證明 case 的 `latency / best_known`。
+- runtime 只要在時限內（含餘裕）即可，記錄下來供報告比較用，不作為優化目標。
 
 # 目錄與工具
 
@@ -96,7 +97,7 @@ Project4/                 main（只放共用環境；研究在各自的 worktre
   - fanin / fanout 以 CSR 存放，並附 operation 的拓撲順序 `topo`。
 - `blif.hpp`：`read_blif`。
   - 支援 `\` 續行與 `#` 註解，忽略 `.default_*` 等不影響邏輯的指令。
-  - 每個 `.names` 都必須是純 AND / OR / NOT，否則回傳錯誤。
+  - 每個 `.names` 都必須是純 AND / OR / NOT，否則回傳錯誤。輸入就假設只有這三種，不需要支援其他邏輯函數。
   - 也會檢查：重複定義、未定義的訊號、組合迴圈。
 - `schedule.hpp`：
   - `Resources`、`Schedule`；
