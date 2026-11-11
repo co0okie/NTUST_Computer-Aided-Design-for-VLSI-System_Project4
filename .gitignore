@@ -3,5 +3,6 @@
 /shared/
 /claude/
 /codex/
+/human/
 __pycache__/
 gurobi.log
