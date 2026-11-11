@@ -3,30 +3,41 @@
 #include <algorithm>
 #include <queue>
 
-std::vector<std::int32_t> resource_tails(OpGraph const &g, std::int64_t max_closure_bytes) {
+Closure descendants(OpGraph const &g, std::int64_t max_bytes) {
+    Closure c;
+    auto const n = g.n;
+    auto const words = static_cast<std::int64_t>((n + 63) / 64);
+    if (words * n * 8 > max_bytes) return c;
+    c.words = words;
+    c.bits.assign(static_cast<std::size_t>(words * n), 0);
+    for (std::int32_t i = n - 1; i >= 0; --i) {
+        auto *const mine = c.bits.data() + i * words;
+        for (auto const j : g.succ.row(i)) {
+            auto const *const theirs = c.row(j);
+            // Descendants have larger indices, so only words from j / 64 on can be set
+            for (auto w = static_cast<std::int64_t>(j / 64); w < words; ++w) mine[w] |= theirs[w];
+            mine[j / 64] |= std::uint64_t{1} << (j % 64);
+        }
+    }
+    return c;
+}
+
+std::vector<std::int32_t> resource_tails(OpGraph const &g, Closure const &closure) {
     auto const n = g.n;
     std::vector<std::int32_t> tail(n, 0);
-    auto const words = static_cast<std::int64_t>((n + 63) / 64);
-    if (words * n * 8 > max_closure_bytes) {
+    if (closure.empty()) {
         for (std::int32_t i = n - 1; i >= 0; --i)
             for (auto const j : g.succ.row(i)) tail[i] = std::max(tail[i], tail[j] + 1);
         return tail;
     }
-    std::vector<std::uint64_t> desc(static_cast<std::size_t>(words * n), 0);
+    auto const words = closure.words;
     // hist[k][q]: descendants of kind k with tail q, for the op being processed
     std::array<std::vector<std::int32_t>, OP_KINDS> hist;
     for (auto &h : hist) h.assign(1, 0);
     for (std::int32_t i = n - 1; i >= 0; --i) {
-        auto *const mine = desc.data() + static_cast<std::int64_t>(i) * words;
-        // Descendants have larger indices, so only words from i / 64 on can be set
-        auto const first_word = static_cast<std::int64_t>(i / 64);
-        for (auto const j : g.succ.row(i)) {
-            auto const *const theirs = desc.data() + static_cast<std::int64_t>(j) * words;
-            for (auto w = static_cast<std::int64_t>(j / 64); w < words; ++w) mine[w] |= theirs[w];
-            mine[j / 64] |= std::uint64_t{1} << (j % 64);
-        }
+        auto const *const mine = closure.row(i);
         std::int32_t top = -1;
-        for (auto w = first_word; w < words; ++w) {
+        for (auto w = static_cast<std::int64_t>(i / 64); w < words; ++w) {
             auto bits = mine[w];
             while (bits != 0) {
                 auto const j = static_cast<std::int32_t>(w * 64 + __builtin_ctzll(bits));
@@ -55,13 +66,6 @@ std::vector<std::int32_t> resource_tails(OpGraph const &g, std::int64_t max_clos
         tail[i] = best;
     }
     return tail;
-}
-
-std::vector<std::int32_t> resource_heads(OpGraph const &g, std::int64_t max_closure_bytes) {
-    auto const mirror_tail = resource_tails(reversed(g), max_closure_bytes);
-    std::vector<std::int32_t> head(g.n);
-    for (std::int32_t i = 0; i < g.n; ++i) head[i] = mirror_tail[g.n - 1 - i] + 1;
-    return head;
 }
 
 std::int32_t jackson_bound(OpGraph const &g, std::vector<std::int32_t> const &head,

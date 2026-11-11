@@ -5,6 +5,18 @@
 
 #include "opgraph.hpp"
 
+// Transitive closure: bit j of row i is set iff op j is a descendant of op i. Empty (words == 0)
+// when it would need more than `max_bytes`.
+struct Closure {
+    std::int64_t words = 0; // 64-bit words per row
+    std::vector<std::uint64_t> bits;
+
+    bool empty() const { return words == 0; }
+    std::uint64_t const *row(std::int32_t i) const { return bits.data() + i * words; }
+};
+
+Closure descendants(OpGraph const &g, std::int64_t max_bytes = 400'000'000);
+
 // Resource-aware tails. tail[i] is a lower bound on the number of steps that must follow op i:
 // every feasible schedule has latency >= step[i] + tail[i].
 //
@@ -12,14 +24,8 @@
 // kind k with tail >= q all run after i, at most limit[k] per step, and q more steps follow the
 // last of them, so tail[i] >= ceil(N / limit[k]) + q. (With N = 1 this is the usual height.)
 //
-// Needs the transitive closure (n^2 / 8 bytes); above `max_closure_bytes` it falls back to
-// plain heights.
-std::vector<std::int32_t> resource_tails(OpGraph const &g,
-                                         std::int64_t max_closure_bytes = 600'000'000);
-
-// Heads from the mirror problem: head[i] is the earliest possible step of op i (>= 1).
-std::vector<std::int32_t> resource_heads(OpGraph const &g,
-                                         std::int64_t max_closure_bytes = 600'000'000);
+// With an empty closure it falls back to plain heights.
+std::vector<std::int32_t> resource_tails(OpGraph const &g, Closure const &closure);
 
 // Lower bound on the latency: for each kind on its own, the optimal schedule of its ops with
 // release steps `head` and delivery times `tail` on limit[k] machines, ignoring precedence
