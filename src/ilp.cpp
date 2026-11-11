@@ -145,7 +145,8 @@ Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedul
     // Leave time for Gurobi to wind down, and for us to print the schedule
     auto const remaining = clock.remaining();
     auto const time_limit = std::max(1.0, remaining - 4.0);
-    job.params = {{"TimeLimit", std::to_string(time_limit)}, {"MIPGap", "0"}};
+    // LogFile= (empty): no gurobi.log in the working directory; stdout is captured instead
+    job.params = {{"LogFile", ""}, {"TimeLimit", std::to_string(time_limit)}, {"MIPGap", "0"}};
     if (options.threads > 0) job.params.push_back({"Threads", std::to_string(options.threads)});
     job.interrupt_after = std::max(1.5, remaining - 2.5);
     job.kill_after = std::max(2.0, remaining - 1.0);
