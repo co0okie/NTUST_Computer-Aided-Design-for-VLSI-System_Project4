@@ -35,4 +35,4 @@ struct ExactResult {
 // Baseline time-indexed ILP. The heuristic schedule supplies the latency upper bound (which
 // limits every operation's [ASAP, ALAP] window) and a MIP start.
 Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedule const &heuristic,
-                                   IlpOptions const &options, Clock const &clock);
+                                   std::int32_t known_bound, IlpOptions const &options, Clock const &clock);

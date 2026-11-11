@@ -10,6 +10,7 @@
 #include "gurobi.hpp"
 #include "heuristic.hpp"
 #include "ilp.hpp"
+#include "opgraph.hpp"
 #include "result.hpp"
 #include "schedule.hpp"
 
@@ -95,14 +96,18 @@ Result<Unit> run(Options const &o, Clock &clock) {
     }
 
     TRY(auto const netlist, read_blif(o.blif));
-    TRY(auto const heuristic, list_schedule(netlist, o.resources));
+    TRY_VOID(check_resources(netlist, o.resources));
+    auto const graph = make_op_graph(netlist, o.resources);
+    auto const found = heuristic_schedule(graph, clock, o.mode == Mode::Heuristic ? 5.0 : 3.0);
+    auto const heuristic = to_schedule(netlist, graph, found.step);
     TRY_VOID(validate(netlist, o.resources, heuristic));
 
     if (o.mode == Mode::Heuristic) {
         print_schedule(std::cout, netlist, heuristic, "Heuristic Scheduling Result");
         if (o.stats)
             std::cerr << "mlrcs-stats mode=h latency=" << heuristic.latency
-                      << " lower_bound=" << lower_bound(netlist, o.resources)
+                      << " lower_bound=" << found.lower_bound << " first=" << found.first_latency
+                      << " passes=" << found.passes
                       << " ops=" << netlist.num_ops() << " time=" << clock.elapsed() << '\n';
         return Unit{};
     }
@@ -111,7 +116,8 @@ Result<Unit> run(Options const &o, Clock &clock) {
     ilp.gurobi_cl = gurobi_cl;
     ilp.keep_dir = o.keep_dir;
     ilp.threads = o.threads;
-    TRY(auto const exact, exact_schedule(netlist, o.resources, heuristic, ilp, clock));
+    TRY(auto const exact,
+        exact_schedule(netlist, o.resources, heuristic, found.lower_bound, ilp, clock));
     TRY_VOID(validate(netlist, o.resources, exact.schedule));
     print_schedule(std::cout, netlist, exact.schedule, "ILP-based Scheduling Result");
     if (o.stats)

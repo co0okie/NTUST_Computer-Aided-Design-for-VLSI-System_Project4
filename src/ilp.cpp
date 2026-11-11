@@ -66,10 +66,10 @@ char const *exact_status_name(ExactStatus s) {
 }
 
 Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedule const &heuristic,
-                                   IlpOptions const &options, Clock const &clock) {
+                                   std::int32_t known_bound, IlpOptions const &options, Clock const &clock) {
     ExactResult result;
     result.schedule = heuristic;
-    result.lower_bound = lower_bound(n, r);
+    result.lower_bound = std::max(known_bound, lower_bound(n, r));
     auto const ub = heuristic.latency;
     if (ub <= result.lower_bound) {
         result.status = ExactStatus::Bound;
