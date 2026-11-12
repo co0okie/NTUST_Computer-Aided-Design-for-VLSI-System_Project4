@@ -1,0 +1,88 @@
+=== aoi_C1355:2,2,1 path-min ===
+Loaded user MIP start with objective 185
+Presolve time: 51.02s
+Explored 0 nodes (0 simplex iterations) in 51.04 seconds (26.78 work units)
+Solution count 1: 185 
+Time limit reached
+Best objective 1.850000000000e+02, best bound -, gap -
+
+=== aoi_C1355:2,2,1 resource-min ===
+Loaded user MIP start with objective 185
+Presolve time: 34.12s
+Presolved: 137934 rows, 59258 columns, 338804 nonzeros
+Root relaxation presolved: 137859 rows, 59258 columns, 338629 nonzeros
+Root barrier log...
+Barrier solved model in 17 iterations and 42.13 seconds (28.74 work units)
+Optimal objective 1.78000000e+02
+Root crossover log...
+       0 DPushes remaining with DInf 0.0000000e+00                42s
+   58737 PPushes remaining with PInf 0.0000000e+00                42s
+    5435 PPushes remaining with PInf 0.0000000e+00                45s
+     903 PPushes remaining with PInf 0.0000000e+00                50s
+Crossover changed status from Optimal to Time Limit
+Root relaxation: time limit, 58369 iterations, 16.56 seconds (12.87 work units)
+Explored 1 nodes (58369 simplex iterations) in 50.95 seconds (37.31 work units)
+Solution count 1: 185 
+Time limit reached
+Best objective 1.850000000000e+02, best bound 1.780000000000e+02, gap 3.7838%
+
+=== aoi_C1355:2,2,1 path-feas ===
+Presolve time: 50.90s
+Explored 0 nodes (0 simplex iterations) in 51.00 seconds (25.71 work units)
+Solution count 0
+Time limit reached
+Best objective -, best bound -, gap -
+
+=== aoi_C1355:2,2,1 resource-feas ===
+Presolve time: 35.06s
+Presolved: 136350 rows, 58609 columns, 333340 nonzeros
+Root relaxation presolved: 136272 rows, 58609 columns, 333160 nonzeros
+Root barrier log...
+Barrier solved model in 17 iterations and 42.99 seconds (27.79 work units)
+Optimal objective 0.00000000e+00
+Root crossover log...
+       0 DPushes remaining with DInf 0.0000000e+00                43s
+   58095 PPushes remaining with PInf 0.0000000e+00                43s
+    8204 PPushes remaining with PInf 0.0000000e+00                45s
+    1422 PPushes remaining with PInf 0.0000000e+00                50s
+Crossover changed status from Optimal to Time Limit
+Root relaxation: time limit, 57085 iterations, 15.44 seconds (10.70 work units)
+Explored 1 nodes (57085 simplex iterations) in 50.96 seconds (34.45 work units)
+Solution count 0
+Time limit reached
+Best objective -, best bound 0.000000000000e+00, gap -
+
+=== codex_gap:1,1,1 path-min ===
+Loaded user MIP start with objective 4
+Presolve time: 0.00s
+Presolved: 8 rows, 7 columns, 19 nonzeros
+Root relaxation presolve: All rows and columns removed
+Root relaxation: objective 3.000000e+00, 0 iterations, 0.00 seconds (0.00 work units)
+Explored 1 nodes (0 simplex iterations) in 0.00 seconds (0.00 work units)
+Solution count 2: 3 4 
+Optimal solution found (tolerance 0.00e+00)
+Best objective 3.000000000000e+00, best bound 3.000000000000e+00, gap 0.0000%
+
+=== codex_gap:1,1,1 resource-min ===
+Loaded user MIP start with objective 4
+Presolve time: 0.00s
+Presolved: 8 rows, 7 columns, 19 nonzeros
+Root relaxation presolve: All rows and columns removed
+Root relaxation: objective 3.000000e+00, 0 iterations, 0.00 seconds (0.00 work units)
+Explored 1 nodes (0 simplex iterations) in 0.00 seconds (0.00 work units)
+Solution count 2: 3 4 
+Optimal solution found (tolerance 0.00e+00)
+Best objective 3.000000000000e+00, best bound 3.000000000000e+00, gap 0.0000%
+
+=== codex_gap:1,1,1 path-feas ===
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds (0.00 work units)
+Solution count 1: 0 
+Optimal solution found (tolerance 0.00e+00)
+Best objective 0.000000000000e+00, best bound 0.000000000000e+00, gap 0.0000%
+
+=== codex_gap:1,1,1 resource-feas ===
+Explored 0 nodes (0 simplex iterations) in 0.00 seconds (0.00 work units)
+Solution count 1: 0 
+Optimal solution found (tolerance 0.00e+00)
+Best objective 0.000000000000e+00, best bound 0.000000000000e+00, gap 0.0000%
+

@@ -322,3 +322,11 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-11 22:43	7344de9	aoi_C1355:2,2,1	e	185	178	185	timelimit	51.52	OK	compact-cumulative-ablation
 2026-11-11 22:44	7344de9	aoi_C1355:8,8,4	e	50	46	50	timelimit	51.16	OK	compact-cumulative-ablation
 2026-11-11 22:44	7344de9	codex_gap:1,1,1	e	3	3	4	optimal	0.02	OK	compact-cumulative-ablation
+2026-11-11 22:56	b376c9b+window-horizon	aoi_C1355:2,2,1	e	185	178	185	timelimit	51.60	OK	window-horizon-diag:path-min
+2026-11-11 22:57	b376c9b+window-horizon	aoi_C1355:2,2,1	e	185	178	185	timelimit	51.34	OK	window-horizon-diag:resource-min
+2026-11-11 22:58	b376c9b+window-horizon	aoi_C1355:2,2,1	e	185	178	185	timelimit	51.49	OK	window-horizon-diag:path-feas
+2026-11-11 22:59	b376c9b+window-horizon	aoi_C1355:2,2,1	e	185	178	185	timelimit	51.29	OK	window-horizon-diag:resource-feas
+2026-11-11 22:59	b376c9b+window-horizon	codex_gap:1,1,1	e	3	3	4	bound	0.03	OK	window-horizon-diag:path-min
+2026-11-11 22:59	b376c9b+window-horizon	codex_gap:1,1,1	e	3	3	4	bound	0.03	OK	window-horizon-diag:resource-min
+2026-11-11 22:59	b376c9b+window-horizon	codex_gap:1,1,1	e	3	3	4	bound	0.02	OK	window-horizon-diag:path-feas
+2026-11-11 22:59	b376c9b+window-horizon	codex_gap:1,1,1	e	3	3	4	bound	0.03	OK	window-horizon-diag:resource-feas

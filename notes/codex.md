@@ -141,3 +141,38 @@ Compact C1355:2,2,1 可建模（100,219 binary、256,898 rows、13,001,702 LP by
 shared/best.tsv：預設 suite 沒有任何數值改善，保留其他路線更好的紀錄；本輪補登自製 gap optimum=3（在 default76之外），追加精簡模型的驗證來源，不把負結果改寫成新的 best。Q6 已讀、Q7 已告知 prefix 負結果，精簡模型結果另追加通知。
 
 未完成：full-suite compact 評估、root LP 診斷、正式整合及 3 頁報告，均不在本輪有限階段內，沒有啟動。下一步若主持人再授權，先依 claude Q6 對照緊時間窗/UB-1 formulation 與目前寬窗 min-L 的模型大小及 root 行為，聚焦尚未解的 C1355:3,2,2；不再盲目重跑這兩種寬窗 cumulative 表示法。此處按主持人要求停止。
+
+## 時間窗 × horizon 診斷階段（主持人指定）
+
+動手前已讀 claude@55567d1：在既有 UB-1 feasibility 中使用 Method=2、Presolve=2（保留 DualReductions=0），已證明 C1355:3,2,2 optimum=141。本輪不重做這個搜尋。shared Q6/Q8 已讀，無待答 open 問題。
+
+限定 C1355:2,2,1 的 2×2 controlled diagnostic：path ASAP/ALAP 與 recursive-resource 時間窗；原 UB 的 min-L 與單次 H=UB-1 feasibility。固定本路線原 heuristic、Method=2、Presolve=2、DualReductions=0、Threads=4；計時只用 CPU4–7。另用 codex_gap 及小型 DAG 驗證。這個新 min-L/path control 也採相同 barrier/presolve 設定，因此不能把其差異全部歸因時間窗，更不能與上階段 auto-method runtime 直接當單因素比較。
+
+強窗計算採用 claude@55567d1 的 bounds/opgraph 檔案，固定 commit 並明確註記來源；以既有 compact 模型為基礎，不修改正式 src。所有實驗保留原始 schedule、stderr、LP、solution 與 Gurobi log，由 diagnostic harness 呼叫 check.py；對每個 run 記錄模型大小、presolve/root LP 時間與分支節點，未出現的階段記為未觀測。此輪不搜尋 solver parameters、不開新 circuit suite。
+
+單次 feasibility 的 optimal status 只代表零目標問題解完，不能當成原排程最佳。只有 H=UB-1 確定 infeasible 才能證明原 UB 最佳；或合法 incumbent 等於有效 LB。由於 heuristic 原本長 UB，H=UB-1 不提供不可行的 heuristic MIP start，這是與 min-L 控制組的內在差異，必須在結論揭露。
+
+進行中：只授權一個 subagent 完成實作、驗證與診斷；若額度降至 10% 以下，本輪依主持人最新指示留下可恢復 notes/commit 後停止，不等待後另開研究。
+
+### 2×2 診斷結果：本階段完成
+
+Clean build 6.80 秒（首次建立的新目錄）；48 個小型驗證全部通過獨立 DP/checker：10 個 h>OPT 小圖 ×4 模型、4 個強制建模 infeasibility 控制與4個 gap preflight。正式診斷8個 run全部 checker OK，每個有保留 schedule、stderr、模型、解檔（如有）及 solver log；資料存於 shared/tmp/codex/window-horizon/formal，重現與摘要見 notes/window-horizon-ablation.md。
+
+C1355:2,2,1 固定原 heuristic UB=185、原有效 LB=178；四組均沒有改善 incumbent，最終保留合法185，wall time 51.29–51.60秒。gap四組均得到3並等於LB，正確證明最佳。
+
+| 窗/目標 | H | binaries | rows | presolve | root及終止階段 |
+|---|---:|---:|---:|---:|---|
+| path / min L | 185 | 100219 | 256898 | 51.02s | 未觀測root；presolve耗盡預算 |
+| resource / min L | 185 | 58982 | 143280 | 34.12s | barrier收斂至178，crossover逾時 |
+| path / feasibility | 184 | 99576 | 255203 | 50.90s | 未觀測root；presolve耗盡預算 |
+| resource / feasibility | 184 | 58339 | 141618 | 35.06s | barrier收斂至0，crossover逾時 |
+
+強窗減少約41% binary，min-L LP由13,001,696降至7,231,071bytes。但僅將求解推進到較後階段，沒有帶來本次latency收益。UB−1比相同窗的min-L少643binary（每個operation少一格），不是大幅縮模。feasibility沒有可行MIP start，而min-L載入185；兩個feasibility run沒有整數解，不能把零目標LP的0當成排程解或最佳證明。
+
+關鍵日誌證據：resource/min-L及resource/feas的 barrier均17 iterations，在 **solver累計時間42.13s/42.99s** 收斂；這不是額外42秒barrier耗時。隨後進入 Root crossover log，在約50秒仍剩903/1422個PPushes，並出現 `Crossover changed status from Optimal to Time Limit`。root摘要分別16.56/15.44秒，包含barrier、ordering、crossover等root階段；不可把未完成的root誤寫為barrier沒有收斂。兩個path組只有0 nodes，強窗組只有root的1 node，沒有看到分支樹搜尋成為主要成本。
+
+結論範圍：在固定本路線UB185與共同Method2/Presolve2設定下，主要瓶頸先是presolve，再是crossover；時間窗收緊有效降低模型規模，但本次不降低latency。這不否定claude@55567d1的結果：對方有更好的heuristic與更緊horizon；不能將兩路不同UB的結果當成純solver設定差異。本輪未重做已知C1355:3,2,2=141的證明，也沒有搜尋新參數。
+
+決定：production src保持不變。本階段未刷新default suite的best latency/LB，shared/best.tsv只追加自製gap的驗證來源，保留他路較強紀錄。已保存固定source manifest、完整phase摘要、48個驗證紀錄與8筆diagnostic結果到codex-results.tsv；harness不是eval.py，明確記載獨立check.py、60秒外部限制、55秒程式預算、CPU4–7與Threads4。
+
+未完成且本輪不做：更好UB下的同因素比較、presolve/crossover設定消融、full suite與production整合。下一步若再授權，先整合或固定已驗證的較好heuristic UB，再決定是否值得針對presolve/crossover做單因素對照；避免重做已知141證明或把時間當成額外目標。到此按主持人要求停止。
