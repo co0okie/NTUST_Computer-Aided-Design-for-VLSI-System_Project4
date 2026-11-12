@@ -1,6 +1,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -22,6 +23,7 @@ constexpr char const *USAGE =
     "  -e               exact (ILP, solved with gurobi_cl)\n"
     "options:\n"
     "  --time SECONDS   wall-clock budget for the whole run (default 55)\n"
+    "  --htime SECONDS  -h: time spent on randomized improvement (default 10)\n"
     "  --threads N      Gurobi threads (default: Gurobi's choice)\n"
     "  --keep DIR       keep the ILP model, MIP start, solution and Gurobi log in DIR\n"
     "  --stats          print one line of statistics to stderr\n";
@@ -33,6 +35,7 @@ struct Options {
     std::string blif;
     Resources resources;
     double time = 55;
+    double htime = 10;
     int threads = 0;
     std::string keep_dir;
     bool stats = false;
@@ -73,6 +76,10 @@ Result<Options> parse_args(int argc, char **argv) {
             char *end = nullptr;
             o.time = std::strtod(value, &end);
             if (*end != '\0' || !(o.time > 0)) return err("bad value for --time");
+        } else if (flag == "--htime") {
+            char *end = nullptr;
+            o.htime = std::strtod(value, &end);
+            if (*end != '\0' || !(o.htime >= 0)) return err("bad value for --htime");
         } else if (flag == "--threads") {
             TRY(auto const v, parse_int(value, "--threads"));
             if (v < 0) return err("bad value for --threads");
@@ -98,7 +105,9 @@ Result<Unit> run(Options const &o, Clock &clock) {
     TRY(auto const netlist, read_blif(o.blif));
     TRY_VOID(check_resources(netlist, o.resources));
     auto const graph = make_op_graph(netlist, o.resources);
-    auto const found = heuristic_schedule(graph, clock, o.mode == Mode::Heuristic ? 5.0 : 3.0);
+    auto found = heuristic_schedule(graph, clock, o.mode == Mode::Heuristic ? 5.0 : 3.0);
+    improve_schedule(graph, found, clock,
+                     o.mode == Mode::Heuristic ? std::min(o.htime, o.time - 5.0) : 3.0);
     auto const heuristic = to_schedule(netlist, graph, found.step);
     TRY_VOID(validate(netlist, o.resources, heuristic));
 
@@ -121,7 +130,19 @@ Result<Unit> run(Options const &o, Clock &clock) {
     ilp.gurobi_cl = gurobi_cl;
     ilp.keep_dir = o.keep_dir;
     ilp.threads = o.threads;
-    auto const exact = exact_schedule(graph, found, ilp, clock);
+    auto exact = exact_schedule(graph, found, ilp, clock);
+    if (exact.status == ExactStatus::TooLarge && exact.latency > exact.lower_bound) {
+        // The model is too big to solve: spend the remaining time on randomized heuristics
+        HeuristicResult more = found;
+        more.step = exact.step;
+        more.latency = exact.latency;
+        improve_schedule(graph, more, clock, o.time - 3.0);
+        if (more.latency < exact.latency) {
+            exact.step = more.step;
+            exact.latency = more.latency;
+        }
+        if (exact.latency <= exact.lower_bound) exact.status = ExactStatus::Bound;
+    }
     auto const schedule = to_schedule(netlist, graph, exact.step);
     auto const valid = validate(netlist, o.resources, schedule);
     // Whatever happened in the solver, the heuristic schedule is always a legal answer

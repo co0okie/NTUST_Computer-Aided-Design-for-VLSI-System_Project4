@@ -34,3 +34,9 @@ struct HeuristicResult {
 };
 
 HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double time_budget);
+
+// Randomized multi-start improvement of `r` (fixed seed): perturbed priorities, list/unlock
+// scheduling forward or on the mirror graph, then a few forward-backward rounds. Runs while
+// clock.elapsed() < deadline_elapsed and r.latency > r.lower_bound; only ever lowers r.latency.
+void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
+                      double deadline_elapsed);

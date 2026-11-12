@@ -13,6 +13,7 @@ struct IlpOptions {
     std::string gurobi_cl;   // from find_gurobi_cl()
     std::string keep_dir;    // keep the LP/solution/log files here; empty: temporary, deleted
     int threads = 0;         // Gurobi Threads parameter; 0 = Gurobi's default
+    bool use_ends_bound = false; // experimental prefix/suffix relaxation when the model is too large
     std::int64_t max_vars = 400'000; // do not build a model larger than this
 };
 

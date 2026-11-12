@@ -314,7 +314,7 @@ ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
         }
         result.num_vars = model.num_vars;
         if (model.num_vars > options.max_vars) {
-            ends_bound(g, heuristic, dir, options, clock, result);
+            if (options.use_ends_bound) ends_bound(g, heuristic, dir, options, clock, result);
             if (result.latency <= result.lower_bound) break;
             result.status = ExactStatus::TooLarge;
             return result;

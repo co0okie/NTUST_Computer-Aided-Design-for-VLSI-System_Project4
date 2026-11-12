@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <queue>
+#include <random>
 #include <utility>
 
 #include "bounds.hpp"
@@ -215,4 +216,90 @@ HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double 
         stale = (a || b) ? 0 : stale + 1;
     }
     return r;
+}
+
+void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
+                      double deadline_elapsed) {
+    if (g.n == 0 || r.latency <= r.lower_bound || clock.elapsed() >= deadline_elapsed) return;
+    auto const mirror = reversed(g);
+    auto const closure = descendants(g);
+    auto const mirror_closure = descendants(mirror);
+    auto const mirror_tail = resource_tails(mirror, mirror_closure);
+    auto const &tail = r.tail;
+
+    int bottleneck = 0;
+    {
+        std::int64_t load = -1;
+        for (int k = 0; k < OP_KINDS; ++k) {
+            if (g.count[k] == 0) continue;
+            auto const l = (static_cast<std::int64_t>(g.count[k]) + g.limit[k] - 1) / g.limit[k];
+            if (l > load) load = l, bottleneck = k;
+        }
+    }
+    auto const unlock_options = [&](int variant) {
+        UnlockOptions o;
+        o.target_kinds = variant < 2 ? 1U << bottleneck : 7U;
+        o.driven_kinds = variant % 2 == 0 ? 7U & ~(1U << bottleneck) : 7U;
+        return o;
+    };
+
+    constexpr std::int64_t W = 1024;
+    constexpr double amps[] = {0.5, 1, 2, 4};
+    std::mt19937_64 rng(0x9e3779b97f4a7c15ULL);
+    std::vector<std::int64_t> key(g.n), mkey(g.n);
+    std::vector<std::int32_t> cur, back;
+
+    auto const consider = [&](std::vector<std::int32_t> const &step) {
+        ++r.passes;
+        auto const latency = latency_of(step);
+        if (latency < r.latency) {
+            r.latency = latency;
+            r.step = step;
+        }
+    };
+
+    for (std::uint64_t iter = 0; r.latency > r.lower_bound && clock.elapsed() < deadline_elapsed;
+         ++iter) {
+        auto const amp = amps[rng() % 4];
+        auto const noise_range = static_cast<std::uint64_t>(amp * W);
+        auto const from_step = rng() % 3 == 0; // base key: the best schedule so far
+        auto const strategy = (iter < 6 && iter != 0) ? iter : rng() % 6; // 0 fwd, 1 mirror, 2..5 unlock
+        for (std::int32_t i = 0; i < g.n; ++i) {
+            auto const noise = static_cast<std::int64_t>(rng() % noise_range);
+            auto const base = from_step ? static_cast<std::int64_t>(r.latency + 1 - r.step[i]) * W
+                                        : tail[i] * W;
+            key[i] = base + noise;
+        }
+        for (std::int32_t i = 0; i < g.n; ++i) {
+            auto const noise = static_cast<std::int64_t>(rng() % noise_range);
+            auto const base = from_step ? static_cast<std::int64_t>(r.step[g.n - 1 - i]) * W
+                                        : mirror_tail[i] * W;
+            mkey[i] = base + noise;
+        }
+        bool const use_closure = !closure.empty();
+        if (strategy == 0 || (strategy >= 2 && !use_closure)) {
+            cur = list_schedule(g, key);
+        } else if (strategy == 1) {
+            cur = mirror_steps(list_schedule(mirror, mkey));
+        } else if (strategy % 2 == 0) {
+            cur = unlock_schedule(g, closure, key, unlock_options(static_cast<int>(rng() % 4)));
+        } else {
+            cur = mirror_steps(
+                unlock_schedule(mirror, mirror_closure, mkey, unlock_options(static_cast<int>(rng() % 4))));
+        }
+        consider(cur);
+        auto const rounds = 2 + static_cast<int>(rng() % 3);
+        for (int round = 0; round < rounds && r.latency > r.lower_bound; ++round) {
+            if (clock.elapsed() >= deadline_elapsed) break;
+            auto const big = static_cast<std::int64_t>(g.n) + latency_of(cur) + 2;
+            for (std::int32_t i = 0; i < g.n; ++i)
+                mkey[g.n - 1 - i] = static_cast<std::int64_t>(cur[i]) * big + mirror_tail[g.n - 1 - i];
+            back = list_schedule(mirror, mkey);
+            for (std::int32_t i = 0; i < g.n; ++i)
+                key[i] = static_cast<std::int64_t>(back[g.n - 1 - i]) * big + tail[i];
+            cur = list_schedule(g, key);
+            consider(mirror_steps(back));
+            consider(cur);
+        }
+    }
 }
