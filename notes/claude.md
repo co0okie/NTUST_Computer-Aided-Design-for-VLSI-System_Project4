@@ -102,3 +102,25 @@ baseline 的 lower bound（critical path 與 `ceil(N_k/c_k)`）與 height-priori
   與 AND 鏈交錯得剛好；heuristic 的 greedy 順序（n0→n5→n7→n10）讓 n2、n3 太晚，後面的 OR（n9、n15、n12）被拖到第 7–9 步。
   也就是：tail priority 只看「後面還有多少工作」，看不到不同 kind 的鏈之間的交錯時機。
 - 另外，課程測資 aoi_C1355:8,8,4 也有差異（h=48，e=47）。
+
+## 階段 2（2026-11-11 晚）
+
+### 做了什麼
+1. **Gurobi 參數實驗**（subagent；`shared/tmp/claude/exp/`，2 threads）：C1355:3,2,2 的 horizon-140 可行性模型，
+   預設／dual／primal／concurrent／barrier 都在 50 s 內沒有結論；只有 `Method=2 Presolve=2` 在 28.5 s 證明 infeasible
+   （barrier root 11.5 s，重跑一致）。root LP 時間：barrier 11.4 s，預設 32.9 s。
+   prefix 模型（big2、des）則沒有任何參數能在 50 s 內解完 root LP ⇒ 問題在模型大小，不是參數。
+2. **`improve_schedule`**（`src/heuristic.cpp`，subagent 實作）：固定 seed 的隨機多次重啟——tail 或目前最佳排程的 step 當 base key，
+   加上 0.5–4 個 tail 單位的雜訊，隨機選 list／unlock、forward／mirror，再接 2–4 輪 FBI。
+   `-h` 預設用到 10 s（`--htime`）；`-e` 先用 3 s，模型太大（too_large）時把剩下的時間全給它，不再跑沒有效果的 prefix ILP（`use_ends_bound=false`）。
+   - des:3,2,2 662→661 = LB（0.04 s 內），C1355:8,8,4 48→47，big2:2,2,1 3764→3763，big2:3,2,2 2520→2518（`-e` 的 52 s 得 2516），big2:8,8,4 948→946。
+   - 進步都在前 0.3 s 內出現，之後幾乎停滯（`--htime 40` 只讓 big2:3,2,2 多降 2）⇒ 純隨機重啟已到極限，需要別種 move。
+3. 可行性 ILP 改用 `Method=2 Presolve=2`。
+
+### 正式評估（note=`stage2: ...`，commit 55567d1；76×2 全部 checker OK，無逾時，時間無異常——最大 52.03 s）
+- `-h`：68/76 等於 LB；未證明的 8 個各跑滿 10 s，總計 81.6 s。
+- `-e`：68 bound + 3 optimal（C1355:3,2,2=141 於 37.6 s、C1355:8,8,4=47 於 7.4 s、i8:8,8,4=95 於 21.8 s）= **71/76**；
+  1 timelimit（C1355:2,2,1：179，LB 178）；4 too_large（big2：7518/7512、3763/3758、2516/2508、946/945）。
+- **退步**：C1355:2,2,1 在階段 1（預設 simplex）15 s 就在 root LP 證明 infeasible，換成 barrier+Presolve=2 後 49 s 逾時。
+  兩組設定各擅長一個 case；i8:8,8,4 也從 2.8 s 變 21.8 s。下一步：找單一設定或做 portfolio。
+- `shared/best.tsv`：72/76 個 benchmark case 已證明最佳（含階段 1 證明的 C1355:2,2,1）；剩 big2 四組。
