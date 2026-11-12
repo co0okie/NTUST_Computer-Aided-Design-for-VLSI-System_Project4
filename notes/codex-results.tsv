@@ -313,3 +313,9 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-11 15:21	b503259+dirty	aoi_big3:2,2,1	e	6756	6718	6756	too_large	0.12	OK	closure-count-single-edf-exact
 2026-11-11 15:21	b503259+dirty	aoi_big3:3,2,2	e	6718	6718	6718	bound	0.12	OK	closure-count-single-edf-exact
 2026-11-11 15:21	b503259+dirty	aoi_big3:8,8,4	e	1692	1687	1692	too_large	0.12	OK	closure-count-single-edf-exact
+2026-11-11 15:42	7344de9	aoi_C1355:2,2,1	e	185	178	185	too_large	0.72	OK	cumulative-precedence-ablation
+2026-11-11 15:43	7344de9	aoi_C1355:8,8,4	e	49	46	50	timelimit	52.85	OK	cumulative-precedence-ablation
+2026-11-11 15:43	7344de9	codex_gap:1,1,1	e	3	3	4	optimal	0.02	OK	cumulative-precedence-ablation
+2026-11-11 15:44	7344de9	aoi_C1355:2,2,1	e	185	178	185	timelimit	52.40	OK	scalar-precedence-control
+2026-11-11 15:45	7344de9	aoi_C1355:8,8,4	e	48	46	50	timelimit	51.15	OK	scalar-precedence-control
+2026-11-11 15:45	7344de9	codex_gap:1,1,1	e	3	3	4	optimal	0.02	OK	scalar-precedence-control

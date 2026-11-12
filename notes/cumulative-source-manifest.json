@@ -1,0 +1,56 @@
+{
+  "source_commit": "b376c9bfb4d239322b802c307cf005f57c984b48",
+  "source_sha256": {
+    "CMakeLists.txt": "e7583dbbda47fb04d4bb743a3eb694c5f85754c7e379872cd4db7a38c2abe853",
+    "src/blif.cpp": "ceb250c8521424c94e7d1bbc7c1fb19ae8d28e8c7aff827d4f0549851f18e507",
+    "src/blif.hpp": "1df150ca3413514e51c45d7250b272ca64b5e2cc8e1b4d319e8ff775fb8b0b00",
+    "src/clock.hpp": "1f4f5d1d3bdd99c5cf52ce7ebbe0dc0581d01fcc04d3304f89e387b08a056c74",
+    "src/gurobi.cpp": "428321db54ce8b17558d0d8214ee290b0d57723a77e0eb229672ee653e4b989a",
+    "src/gurobi.hpp": "48cbebdd56496e69624c76cf6f8d7cdfcbbfa12a23437e88cbcce16b6095c7cd",
+    "src/heuristic.cpp": "60eeec7d5acd4c1e549d2be17cb3753a0816027152a359f328b85d22f02e9b01",
+    "src/heuristic.hpp": "74104ec831c4a5a6fd6ade8c6578d654c2a3e2d9e57ce19e2c230b6e3ec35f7e",
+    "src/ilp.cpp": "465e0d0be2c25cc898b4287a3756c4f1f701e403d8578aca17349d451e7e39fb",
+    "src/ilp.hpp": "ea98bed04d4b73b18f3bdf886d7167d53a32ba5dc1536017ae3482dfa927f538",
+    "src/main.cpp": "266db0d388ae7fe4fa38c163c407f3bed6e5d4dc7d78271bd7445c55b6ea2644",
+    "src/netlist.hpp": "d84dcaf7db1095b8d7edc1d2050f6706e572a2584f0c8ea9cec750ba570722ee",
+    "src/result.hpp": "f6658fbcbdfd8be8d91b9f187cee9fbc6e0adf5b7bf82251d7641c5f41dedf58",
+    "src/schedule.cpp": "817edacf8a2d84efbe7513e06ec92341d1bc0f81166f7ca7c8fbd8a6213f95e2",
+    "src/schedule.hpp": "657202711b8c583af3115e9e29a6ea09a6d594848ba57e432727e6aebf95b390"
+  },
+  "variant_sha256": {
+    "cumulative": {
+      "CMakeLists.txt": "e7583dbbda47fb04d4bb743a3eb694c5f85754c7e379872cd4db7a38c2abe853",
+      "src/blif.cpp": "ceb250c8521424c94e7d1bbc7c1fb19ae8d28e8c7aff827d4f0549851f18e507",
+      "src/blif.hpp": "1df150ca3413514e51c45d7250b272ca64b5e2cc8e1b4d319e8ff775fb8b0b00",
+      "src/clock.hpp": "1f4f5d1d3bdd99c5cf52ce7ebbe0dc0581d01fcc04d3304f89e387b08a056c74",
+      "src/gurobi.cpp": "428321db54ce8b17558d0d8214ee290b0d57723a77e0eb229672ee653e4b989a",
+      "src/gurobi.hpp": "48cbebdd56496e69624c76cf6f8d7cdfcbbfa12a23437e88cbcce16b6095c7cd",
+      "src/heuristic.cpp": "60eeec7d5acd4c1e549d2be17cb3753a0816027152a359f328b85d22f02e9b01",
+      "src/heuristic.hpp": "74104ec831c4a5a6fd6ade8c6578d654c2a3e2d9e57ce19e2c230b6e3ec35f7e",
+      "src/ilp.cpp": "5f535428fc3f35023574ecab58fe6a921fb78b3004c1f6de82c3276bb7b5cc38",
+      "src/ilp.hpp": "ea98bed04d4b73b18f3bdf886d7167d53a32ba5dc1536017ae3482dfa927f538",
+      "src/main.cpp": "266db0d388ae7fe4fa38c163c407f3bed6e5d4dc7d78271bd7445c55b6ea2644",
+      "src/netlist.hpp": "d84dcaf7db1095b8d7edc1d2050f6706e572a2584f0c8ea9cec750ba570722ee",
+      "src/result.hpp": "f6658fbcbdfd8be8d91b9f187cee9fbc6e0adf5b7bf82251d7641c5f41dedf58",
+      "src/schedule.cpp": "817edacf8a2d84efbe7513e06ec92341d1bc0f81166f7ca7c8fbd8a6213f95e2",
+      "src/schedule.hpp": "657202711b8c583af3115e9e29a6ea09a6d594848ba57e432727e6aebf95b390"
+    },
+    "scalar": {
+      "CMakeLists.txt": "e7583dbbda47fb04d4bb743a3eb694c5f85754c7e379872cd4db7a38c2abe853",
+      "src/blif.cpp": "ceb250c8521424c94e7d1bbc7c1fb19ae8d28e8c7aff827d4f0549851f18e507",
+      "src/blif.hpp": "1df150ca3413514e51c45d7250b272ca64b5e2cc8e1b4d319e8ff775fb8b0b00",
+      "src/clock.hpp": "1f4f5d1d3bdd99c5cf52ce7ebbe0dc0581d01fcc04d3304f89e387b08a056c74",
+      "src/gurobi.cpp": "428321db54ce8b17558d0d8214ee290b0d57723a77e0eb229672ee653e4b989a",
+      "src/gurobi.hpp": "48cbebdd56496e69624c76cf6f8d7cdfcbbfa12a23437e88cbcce16b6095c7cd",
+      "src/heuristic.cpp": "60eeec7d5acd4c1e549d2be17cb3753a0816027152a359f328b85d22f02e9b01",
+      "src/heuristic.hpp": "74104ec831c4a5a6fd6ade8c6578d654c2a3e2d9e57ce19e2c230b6e3ec35f7e",
+      "src/ilp.cpp": "9bee77de55c39f0bc93a9ec4d5dc1c1c1489881d09efb74063c46378bc98e1ea",
+      "src/ilp.hpp": "ea98bed04d4b73b18f3bdf886d7167d53a32ba5dc1536017ae3482dfa927f538",
+      "src/main.cpp": "266db0d388ae7fe4fa38c163c407f3bed6e5d4dc7d78271bd7445c55b6ea2644",
+      "src/netlist.hpp": "d84dcaf7db1095b8d7edc1d2050f6706e572a2584f0c8ea9cec750ba570722ee",
+      "src/result.hpp": "f6658fbcbdfd8be8d91b9f187cee9fbc6e0adf5b7bf82251d7641c5f41dedf58",
+      "src/schedule.cpp": "817edacf8a2d84efbe7513e06ec92341d1bc0f81166f7ca7c8fbd8a6213f95e2",
+      "src/schedule.hpp": "657202711b8c583af3115e9e29a6ea09a6d594848ba57e432727e6aebf95b390"
+    }
+  }
+}

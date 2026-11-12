@@ -89,3 +89,35 @@ closure-count + single-pass EDF 全 76 heuristic case checker OK、latency 不�
 先讀 shared/questions.md 的 Q4 與 claude@b522503：對方 heuristic+recursive tail 已直接證明 67/76，big2/big3 改善遠大於本輪，應保留其成果供後續整合。但 codex 此輪已完成獨立的下界 ablation、robust fallback、完整 exact 實測與 tiny oracle，不要抹除這些對照數據。
 
 下一輪優先在 C1355 上試 fixed-horizon cumulative precedence ILP，先測 LP relaxation 與模型 nonzeros，避免只把完整 suite 再跑一次。若採用 claude heuristic，另開清楚的對照組，並重新尋找/確認自製 h/e 差異測資仍成立。提交用 3 頁 PDF 尚未製作，現有 figures/table/gap 分析已備妥，可待演算法收斂後排版。
+
+## 主持人恢復後的有界階段：累積 precedence 對照
+
+已合併 main@7344de9（merge b376c9b），開始時工作目錄乾淨。接受更新後目標：只有 latency 要最小化；runtime 只作 60 秒硬限制及報告資料，不將微小 runtime 差異當作改善目標。BLIF 維持純 AND/OR/NOT，未開啟其他邏輯支援。已讀 shared/questions.md，截至 Q5 無待回答問題。
+
+本輪限定上一輪已規劃的 cumulative precedence 實驗，先隔離單一因素：沿用原 time-indexed x、latency objective、資源限制、MIP start、上界及 fallback；只把平均 start precedence 換成每個時間閾值的 cumulative inequality。暫不改固定 horizon、不整合其他 heuristic，也不跑完整 suite。
+
+對 operation edge u→v，所有 t 施加 sum_{s<=t} x_vs <= sum_{s<=t-1} x_us。整數 one-hot 下，若 v 在 t 開始，u 必須已在 t-1 或更早開始，故與原 precedence 等價。加總閾值可推出平均 start 不等式，因此 relaxation 不弱於原模型；但 x-prefix 直接展開會增加到 O(edges × window²) 個 terms，可能先撞到 128 MiB 建模上限。這個規模代價也是本輪要量測的結果，不能只因 relaxation 較緊就宣稱改善。
+
+限定 C1355:2,2,1、C1355:8,8,4 與自製 gap，各跑 scalar control 與 cumulative variant，以 tools/eval.py、相同 CPU 4–7 / Gurobi 4 threads、checker 驗證並保存所有結果。實驗由單一 subagent 執行，正式 src 保持不變；沒有實測 latency 收益就不替換 production 模型。
+
+### 累積 prefix 階段收尾（重啟後檢查）
+
+六個背景 run 已於 2026-11-11 15:42–15:45 完成，無需重跑，所有 eval 記錄皆為 checker OK：
+
+| case | scalar latency/status | prefix cumulative latency/status |
+|---|---|---|
+| C1355:2,2,1 | 185 / timelimit | 185 / too_large |
+| C1355:8,8,4 | 48 / timelimit | 49 / timelimit |
+| codex_gap:1,1,1 | 3 / optimal | 3 / optimal |
+
+C1355:8,8,4 的 binary 數同為 14,057，但 LP bytes 999,315→5,229,466，constraint rows 1,804→20,543；C1355:2,2,1 prefix 在 128 MiB LP 上限前中止，因此沒有完整模型大小記錄。正式模型不採納這個變更：本次 prefix 沒有降低 latency，且一組甚至無法進入 solver。這是單次對照的負結果，不宣稱所有 cumulative formulation 都差，也未量測 root LP relaxation 值。
+
+可重現腳本、來源核對與完整表見 cumulative_ablation.py、cumulative-ablation.md、cumulative-model-size.tsv。TSV 的 commit=7344de9 是 eval 在 shared symlink 實際路徑讀到 main 的 metadata；實際 snapshot 已逐檔與 b376c9b 及轉換腳本核對一致。六個正式輸出在當時由 tools/eval.py 呼叫 check.py 通過後刪除，現存 cumulative-gap.out 已另外重驗通過；不把不存在的原始輸出冒充本次重新驗證。
+
+shared/questions.md Q6 已讀：claude@ce1d6e4 使用緊的 resource heads/tails 及 horizon=UB-1 step feasibility，達 70/76；對方也指出 C1355:3,2,2 root LP 退化問題。本輪沒有待回答的 open 問題。
+
+## 主持人追加授權的一個階段：精簡 cumulative 變數
+
+沿相同累積 precedence 方向，將反覆展開的 prefix sum 換成單一 z_it 變數。保留原 ASAP/ALAP(heuristic latency)、minimize L、heuristic 上界與 MIP start，讓模型表示方式成為主要變因。z_it=1 iff start_i<=t，窗外視為 0/1 常數；用 monotone、z_vt<=z_u,t-1、sum(z_it-z_i,t-1)<=R_k。由 start_i=late_i-sum_{t=early_i}^{late_i-1} z_it，sink 的 L+sum z_it>=late_i。每列 precedence 最多兩個非零係數，避免 prefix 展開的二次增長。
+
+此處與 claude Q6 共用 step formulation 的數學想法，來源已註明，但本次保留 minimize L 與原時間窗作受控對照，沒有複製對方程式，也不另試 fixed horizon/solver parameters。實驗仍僅兩個 C1355 與 gap，另用小 DAG 的獨立 exact oracle 驗證；正式 src 等待證據，不在此階段擴大整合。

@@ -1,0 +1,6 @@
+variant	case	model	heuristic_ub	binary_variables	lp_bytes	labelled_constraints
+cumulative	aoi_C1355:8,8,4	C1355.iscas	50	14057	5229466	20543
+cumulative	codex_gap:1,1,1	codex_gap	4	12	750	18
+scalar	aoi_C1355:2,2,1	C1355.iscas	185	100862	7723430	2243
+scalar	aoi_C1355:8,8,4	C1355.iscas	50	14057	999315	1804
+scalar	codex_gap:1,1,1	codex_gap	4	12	732	15
