@@ -338,7 +338,8 @@ ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
         job.params = {{"LogFile", ""},
                       {"TimeLimit", std::to_string(std::max(1.0, left - 3.0))},
                       {"DualReductions", "0"},
-                      {"MIPFocus", "1"}};
+                      {"Method", "2"},
+                      {"Presolve", "2"}}; // barrier + aggressive presolve: see notes (C1355:3,2,2)
         if (options.threads > 0) job.params.push_back({"Threads", std::to_string(options.threads)});
         job.interrupt_after = std::max(1.0, left - 2.0);
         job.kill_after = std::max(1.5, left - 1.0);
