@@ -75,3 +75,155 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-11 15:17	b522503	aoi_big3:2,2,1	h	6718	6718			0.12	OK	tails+jackson LB, unlock-driven LS, FBI
 2026-11-11 15:17	b522503	aoi_big3:3,2,2	h	6718	6718			0.12	OK	tails+jackson LB, unlock-driven LS, FBI
 2026-11-11 15:17	b522503	aoi_big3:8,8,4	h	1687	1687			0.12	OK	tails+jackson LB, unlock-driven LS, FBI
+2026-11-11 15:41	600bc3d	aoi_sample01:1,1,1	h	3	3			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample01:1,1,1	e	3	3	3	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample01:2,2,1	h	3	3			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample01:2,2,1	e	3	3	3	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample01:3,2,2	h	3	3			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample01:3,2,2	e	3	3	3	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample01:8,8,4	h	3	3			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample01:8,8,4	e	3	3	3	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:1,1,1	h	5	5			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:1,1,1	e	5	5	5	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:2,2,1	h	4	4			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:2,2,1	e	4	4	4	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:3,2,2	h	4	4			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:3,2,2	e	4	4	4	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:8,8,4	h	4	4			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_sample02:8,8,4	e	4	4	4	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:1,1,1	h	10	10			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:1,1,1	e	10	10	10	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:2,2,1	h	6	6			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:2,2,1	e	6	6	6	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:3,2,2	h	6	6			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:3,2,2	e	6	6	6	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:8,8,4	h	3	3			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cm138a:8,8,4	e	3	3	3	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:1,1,1	h	16	16			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:1,1,1	e	16	16	16	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:2,2,1	h	14	14			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:2,2,1	e	14	14	14	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:3,2,2	h	8	8			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:3,2,2	e	8	8	8	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:8,8,4	h	6	6			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_x2:8,8,4	e	6	6	6	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:1,1,1	h	35	35			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:1,1,1	e	35	35	35	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:2,2,1	h	18	18			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:2,2,1	e	18	18	18	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:3,2,2	h	13	13			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:3,2,2	e	13	13	13	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:8,8,4	h	8	8			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_z4ml:8,8,4	e	8	8	8	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:1,1,1	h	66	66			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:1,1,1	e	66	66	66	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:2,2,1	h	33	33			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:2,2,1	e	33	33	33	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:3,2,2	h	33	33			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:3,2,2	e	33	33	33	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:8,8,4	h	9	9			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i3:8,8,4	e	9	9	9	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:1,1,1	h	78	78			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:1,1,1	e	78	78	78	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:2,2,1	h	39	39			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:2,2,1	e	39	39	39	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:3,2,2	h	27	27			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:3,2,2	e	27	27	27	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:8,8,4	h	11	11			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i4:8,8,4	e	11	11	11	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:1,1,1	h	33	33			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:1,1,1	e	33	33	33	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:2,2,1	h	17	17			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:2,2,1	e	17	17	17	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:3,2,2	h	17	17			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:3,2,2	e	17	17	17	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:8,8,4	h	7	7			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_i2:8,8,4	e	7	7	7	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:1,1,1	h	112	112			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:1,1,1	e	112	112	112	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:2,2,1	h	57	57			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:2,2,1	e	57	57	57	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:3,2,2	h	39	39			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:3,2,2	e	39	39	39	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:8,8,4	h	17	17			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_9symml:8,8,4	e	17	17	17	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:1,1,1	h	112	112			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:1,1,1	e	112	112	112	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:2,2,1	h	56	56			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:2,2,1	e	56	56	56	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:3,2,2	h	38	38			0.00	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:3,2,2	e	38	38	38	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:8,8,4	h	14	14			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_cht:8,8,4	e	14	14	14	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_C1355:1,1,1	h	280	280			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_C1355:1,1,1	e	280	280	280	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_C1355:2,2,1	h	179	178			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_C1355:2,2,1	e	179	179	179	optimal	14.81	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:41	600bc3d	aoi_C1355:3,2,2	h	141	140			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:42	600bc3d	aoi_C1355:3,2,2	e	141	140	141	timelimit	52.20	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:42	600bc3d	aoi_C1355:8,8,4	h	48	46			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C1355:8,8,4	e	47	47	48	optimal	22.07	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:1,1,1	h	364	364			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:1,1,1	e	364	364	364	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:2,2,1	h	183	183			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:2,2,1	e	183	183	183	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:3,2,2	h	183	183			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:3,2,2	e	183	183	183	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:8,8,4	h	48	48			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_alu4:8,8,4	e	48	48	48	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:1,1,1	h	883	883			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:1,1,1	e	883	883	883	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:2,2,1	h	443	443			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:2,2,1	e	443	443	443	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:3,2,2	h	296	296			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:3,2,2	e	296	296	296	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:8,8,4	h	113	113			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_t481:8,8,4	e	113	113	113	bound	0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:1,1,1	h	738	738			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:1,1,1	e	738	738	738	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:2,2,1	h	371	371			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:2,2,1	e	371	371	371	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:3,2,2	h	248	248			0.01	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:3,2,2	e	248	248	248	bound	0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:8,8,4	h	95	94			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_i8:8,8,4	e	95	95	95	optimal	2.77	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:1,1,1	h	1622	1622			0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:1,1,1	e	1622	1622	1622	bound	0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:2,2,1	h	961	961			0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:2,2,1	e	961	961	961	bound	0.07	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:3,2,2	h	812	812			0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:3,2,2	e	812	812	812	bound	0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:8,8,4	h	258	258			0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_C6288:8,8,4	e	258	258	258	bound	0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:1,1,1	h	1673	1673			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:1,1,1	e	1673	1673	1673	bound	0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:2,2,1	h	837	837			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:2,2,1	e	837	837	837	bound	0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:3,2,2	h	662	661			0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:3,2,2	e	662	661	662	too_large	25.88	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:8,8,4	h	210	210			0.02	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_des:8,8,4	e	210	210	210	bound	0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:1,1,1	h	3616	3616			0.03	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:1,1,1	e	3616	3616	3616	bound	0.06	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:2,2,1	h	1809	1809			0.07	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:2,2,1	e	1809	1809	1809	bound	0.07	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:3,2,2	h	1809	1809			0.06	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:3,2,2	e	1809	1809	1809	bound	0.06	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:8,8,4	h	453	453			0.07	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big1:8,8,4	e	453	453	453	bound	0.07	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:43	600bc3d	aoi_big2:1,1,1	h	7518	7512			0.22	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:44	600bc3d	aoi_big2:1,1,1	e	7518	7512	7518	too_large	25.93	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:44	600bc3d	aoi_big2:2,2,1	h	3764	3758			0.17	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:44	600bc3d	aoi_big2:2,2,1	e	3764	3758	3764	too_large	25.89	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:44	600bc3d	aoi_big2:3,2,2	h	2520	2508			0.22	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:44	600bc3d	aoi_big2:3,2,2	e	2520	2508	2520	too_large	26.28	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:44	600bc3d	aoi_big2:8,8,4	h	948	945			0.17	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big2:8,8,4	e	948	945	948	too_large	25.84	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:1,1,1	h	13427	13427			0.12	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:1,1,1	e	13427	13427	13427	bound	0.12	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:2,2,1	h	6718	6718			0.12	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:2,2,1	e	6718	6718	6718	bound	0.12	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:3,2,2	h	6718	6718			0.12	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:3,2,2	e	6718	6718	6718	bound	0.12	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:8,8,4	h	1687	1687			0.12	OK	stage1: step-ILP feasibility + ends bound
+2026-11-11 15:45	600bc3d	aoi_big3:8,8,4	e	1687	1687	1687	bound	0.12	OK	stage1: step-ILP feasibility + ends bound
