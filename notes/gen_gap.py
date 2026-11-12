@@ -3,7 +3,9 @@
 
 Generate one instance:  python3 notes/gen_gap.py gen SEED NOPS NIN > out.blif
 Search:                 python3 notes/gen_gap.py search [--count N] [--min-ops A] [--max-ops B] [--seed0 S]
-REPRODUCE: (filled in after search; see bottom of notes/claude.md or the final line printed by search)
+The committed benchmark/claude_gap.blif (16 ops, limits 1,1,1: -h 9, -e 8) was found by `search` with
+--min-ops 8 --max-ops 18; the generator was edited afterwards, so `gen` no longer rebuilds that file
+byte for byte. The .blif itself is the reference; a new search finds other instances.
 Only plain python3 stdlib; all randomness is seeded.
 """
 import random, subprocess, sys, os, re, argparse

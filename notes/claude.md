@@ -88,3 +88,17 @@ baseline 的 lower bound（critical path 與 `ceil(N_k/c_k)`）與 height-priori
 
 `too_large` 的 25 s 都花在沒有成果的 prefix ILP 上（見 4.）。`shared/best.tsv` 目前 70/76 證明最佳。
 對照 baseline（main@d8fb11f）：27/76；codex@31d3c14 的 `-e`：60/76。
+
+## 自製差異測資：`benchmark/claude_gap.blif`
+
+- 16 個 operation、7 個 PI，資源 1,1,1：`-h` = 9，`-e` = 8（status optimal）；兩個輸出都通過 `tools/check.py`，
+  存在 `notes/claude_gap_h.txt`、`notes/claude_gap_e.txt`。重現：
+  `build/mlrcs -h benchmark/claude_gap.blif 1 1 1` 與 `-e`。
+- 來源：`notes/gen_gap.py search`（隨機 AND/OR/NOT DAG；只有 `-h` 的 latency ≠ LB 時才跑 `-e`）。
+  注意：找到之後生成器被改過，`gen SEED ...` 已無法逐位元重建這個檔案，以 commit 的 .blif 為準
+  （重跑 `search --seed0 1 --count 4000 --min-ops 8 --max-ops 18`：53 個 latency≠LB，但沒有 e<h）。下一階段要補一個可完全重現的版本。
+- 初步分析：三種 kind 各只有 1 台、負載相近，沒有單一瓶頸。heuristic 在第 1 步讓 OR 機器做 n1（tail 最大），
+  ILP 的解卻讓 OR 機器第 1 步**閒置**不影響，而把 AND 的順序換成 n0→n7→n2→n5…，使 OR 鏈（n1→n8→n6→n9→n12）
+  與 AND 鏈交錯得剛好；heuristic 的 greedy 順序（n0→n5→n7→n10）讓 n2、n3 太晚，後面的 OR（n9、n15、n12）被拖到第 7–9 步。
+  也就是：tail priority 只看「後面還有多少工作」，看不到不同 kind 的鏈之間的交錯時機。
+- 另外，課程測資 aoi_C1355:8,8,4 也有差異（h=48，e=47）。

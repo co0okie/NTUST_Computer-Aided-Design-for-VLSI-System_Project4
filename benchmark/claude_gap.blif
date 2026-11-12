@@ -1,0 +1,43 @@
+.model gap
+.inputs i0 i1 i2 i3 i4 i5 i6
+.outputs n9 n12 n14 n15
+.names i4 i5 n0
+11 1
+.names i4 i2 n1
+1- 1
+-1 1
+.names i6 n0 n2
+11 1
+.names i6 n0 n3
+11 1
+.names i6 n4
+0 1
+.names i0 i2 n5
+11 1
+.names n2 i6 n6
+1- 1
+-1 1
+.names n0 n4 n7
+11 1
+.names n1 n7 n8
+1- 1
+-1 1
+.names n6 n8 n9
+1- 1
+-1 1
+.names n5 i4 n10
+11 1
+.names n0 n10 n11
+1- 1
+-1 1
+.names n3 n8 n12
+1- 1
+-1 1
+.names n3 n10 n13
+11 1
+.names n11 n14
+0 1
+.names n13 n5 n15
+1- 1
+-1 1
+.end
