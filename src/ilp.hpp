@@ -17,10 +17,12 @@ struct EndsOptions {
     std::int32_t head_span = 0; // T for the first steps; 0: from the heuristic schedule
     std::int32_t tail_span = 0; // T' for the last steps; 0: from the heuristic schedule
     std::int32_t extra = 2;     // added to the spans taken from the heuristic schedule
-    std::int32_t checkpoints = 8;
+    std::int32_t checkpoints = 0; // 0: one per step when T <= 10, else 8
     double gamma = 1;           // > 1: checkpoints denser near the start
-    double time = 20;           // seconds for both Gurobi runs together
-    std::int64_t max_nonzeros = 3'000'000;
+    double time = 10;           // seconds for both Gurobi runs together
+    // Skip a side whose model has more variables (unless `force`): above ~15k variables the
+    // root LP alone takes 10+ s on big2 (see notes)
+    std::int64_t max_vars = 15'000;
 };
 
 struct IlpOptions {

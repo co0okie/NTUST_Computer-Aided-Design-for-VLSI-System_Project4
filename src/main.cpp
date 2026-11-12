@@ -27,9 +27,11 @@ constexpr char const *USAGE =
     "  --threads N      Gurobi threads (default: Gurobi's choice)\n"
     "  --keep DIR       keep the ILP model, MIP start, solution and Gurobi log in DIR\n"
     "  --stats          print one line of statistics to stderr\n"
-    "  --ends H,T,M[,G] -e: end relaxations with spans H (head) and T (tail), M checkpoints,\n"
-    "                   spacing exponent G (0 = automatic span); --ends-test: run them always\n"
-    "  --ends-time S    -e: seconds for the end relaxations (default 20)\n";
+    "testing (-e, end relaxations used when the full ILP is too large):\n"
+    "  --ends H,T,M[,G] spans H (head) and T (tail), M checkpoints, spacing exponent G\n"
+    "                   (0 = automatic); --ends-test: same, but run them on every instance\n"
+    "                   and without the size cap, then stop (bound sanity checks)\n"
+    "  --ends-time S    seconds for the end relaxations (default 10)\n";
 
 enum class Mode { Heuristic, Exact };
 
@@ -60,7 +62,7 @@ Result<Unit> parse_ends(char const *text, EndsOptions &ends) {
     }
     ends.head_span = static_cast<std::int32_t>(v[0]);
     ends.tail_span = static_cast<std::int32_t>(v[1]);
-    ends.checkpoints = static_cast<std::int32_t>(std::max(1L, v[2]));
+    ends.checkpoints = static_cast<std::int32_t>(v[2]); // 0: automatic
     if (*end == ',') {
         ends.gamma = std::strtod(end + 1, &end);
         if (*end != '\0' || !(ends.gamma > 0) || ends.gamma > 10)
@@ -172,12 +174,16 @@ Result<Unit> run(Options const &o, Clock &clock) {
         HeuristicResult more = found;
         more.step = exact.step;
         more.latency = exact.latency;
+        more.lower_bound = exact.lower_bound; // stop as soon as the (maybe raised) bound is met
         improve_schedule(graph, more, clock, o.time - 3.0);
         if (more.latency < exact.latency) {
             exact.step = more.step;
             exact.latency = more.latency;
         }
-        if (exact.latency <= exact.lower_bound) exact.status = ExactStatus::Bound;
+        // Met a bound the ILP side raised (end relaxations): proven by the solver, so optimal
+        if (exact.latency <= exact.lower_bound)
+            exact.status = exact.lower_bound > found.lower_bound ? ExactStatus::Optimal
+                                                                 : ExactStatus::Bound;
     }
     auto const schedule = to_schedule(netlist, graph, exact.step);
     auto const valid = validate(netlist, o.resources, schedule);

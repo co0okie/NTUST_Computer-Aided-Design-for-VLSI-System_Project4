@@ -127,11 +127,17 @@ bool feasible(OpGraph const &g, std::vector<std::int32_t> const &step, std::int3
 // predecessors through the precedence rule, puts them after T). Hence any upper bound M on the
 // optimum (Gurobi's best bound, never its incumbent) gives: every schedule leaves at least
 // c_b T - M unit slots of kind b idle in its first T steps. The same model on the mirror graph
-// (heads = tail + 1) bounds the idle slots in the last T' steps.
+// (heads = tail + 1) bounds the idle slots in the last T' steps. Dropping ops that are neither
+// of kind b nor ancestors of a modelled kind-b op only drops constraints (a further relaxation).
+//
+// Experience (aoi_big2, all four limits): the LP relaxation only ever proves the trivial idle slots
+// (the ones before the first kind-b head) because fractional z spreads the ancestor sets ("union"
+// effect); the integer bound needs branching that does not finish beyond ~10k variables. Hence
+// the small time budget and the size cap in EndsOptions.
 struct CheckpointModel {
     std::vector<std::int32_t> tau; // tau[0] = 0, ..., tau[m] = T
     std::vector<std::int32_t> first; // per op: first checkpoint with a variable; m + 1 = not in the model
-    std::int64_t vars = 0, rows = 0, nonzeros = 0;
+    std::int64_t vars = 0;
 };
 
 std::string one_decimal(double x) {
@@ -189,14 +195,8 @@ CheckpointModel make_checkpoint_model(OpGraph const &g, std::vector<std::int32_t
         }
         if (!useful[i]) cm.first[i] = m + 1;
     }
-    for (std::int32_t i = 0; i < g.n; ++i) {
-        if (cm.first[i] > m) continue;
-        auto const v = m - cm.first[i] + 1;
-        auto const preds = static_cast<std::int64_t>(g.pred.row(i).size());
-        cm.vars += v;
-        cm.rows += (v - 1) + v * preds;
-        cm.nonzeros += 2 * ((v - 1) + v * preds) + 2 * v;
-    }
+    for (std::int32_t i = 0; i < g.n; ++i)
+        if (cm.first[i] <= m) cm.vars += m - cm.first[i] + 1;
     return cm;
 }
 
@@ -296,12 +296,13 @@ CheckpointResult solve_checkpoint_model(OpGraph const &g, CheckpointModel const 
     return r;
 }
 
-// Checkpoints for the first T steps: kind-b ops cannot run before `first_b`, so one checkpoint
-// at first_b - 1, then m intervals up to T, denser early when gamma > 1.
+// Checkpoints for the first T steps. m >= T: one per step (the exact prefix problem, given the
+// heads). Otherwise kind-b ops cannot run before `first_b`, so one checkpoint at first_b - 1,
+// then m intervals up to T, denser early when gamma > 1.
 std::vector<std::int32_t> make_checkpoints(std::int32_t T, std::int32_t first_b, std::int32_t m,
                                            double gamma) {
     std::vector<std::int32_t> tau{0};
-    auto const s = std::max(0, std::min(first_b - 1, T - 1));
+    auto const s = m >= T ? 0 : std::max(0, std::min(first_b - 1, T - 1));
     if (s > 0) tau.push_back(s);
     for (std::int32_t j = 1; j <= m; ++j) {
         auto const x = std::pow(static_cast<double>(j) / m, gamma);
@@ -366,7 +367,9 @@ void ends_relaxation(OpGraph const &g, HeuristicResult const &h, ScratchDir cons
         std::int32_t first_b = span[side] + 1;
         for (std::int32_t i = 0; i < g.n; ++i)
             if (graph.kind[i] == b) first_b = std::min(first_b, head[i]);
-        auto const tau = make_checkpoints(span[side], first_b, eo.checkpoints, eo.gamma);
+        auto const intervals =
+            eo.checkpoints > 0 ? eo.checkpoints : (span[side] <= 10 ? span[side] : 8);
+        auto const tau = make_checkpoints(span[side], first_b, intervals, eo.gamma);
         auto const cm = make_checkpoint_model(graph, head, b, tau);
         auto const m = static_cast<std::int32_t>(tau.size()) - 1;
         // Remaining budget: the head side gets at most 60% of it unless the tail side is empty
@@ -375,7 +378,7 @@ void ends_relaxation(OpGraph const &g, HeuristicResult const &h, ScratchDir cons
         std::string note = std::string(side == 0 ? "head" : "tail") + ":T" +
                            std::to_string(span[side]) + "m" + std::to_string(m) + "v" +
                            std::to_string(cm.vars);
-        if (cm.nonzeros > eo.max_nonzeros || budget < 1.0) {
+        if ((cm.vars > eo.max_vars && !eo.force) || budget < 1.0) {
             result.note += (result.note.empty() ? "" : ",") + note + "/skip";
             continue;
         }
