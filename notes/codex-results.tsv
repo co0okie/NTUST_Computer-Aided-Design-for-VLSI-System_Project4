@@ -319,3 +319,6 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-11 15:44	7344de9	aoi_C1355:2,2,1	e	185	178	185	timelimit	52.40	OK	scalar-precedence-control
 2026-11-11 15:45	7344de9	aoi_C1355:8,8,4	e	48	46	50	timelimit	51.15	OK	scalar-precedence-control
 2026-11-11 15:45	7344de9	codex_gap:1,1,1	e	3	3	4	optimal	0.02	OK	scalar-precedence-control
+2026-11-11 22:43	7344de9	aoi_C1355:2,2,1	e	185	178	185	timelimit	51.52	OK	compact-cumulative-ablation
+2026-11-11 22:44	7344de9	aoi_C1355:8,8,4	e	50	46	50	timelimit	51.16	OK	compact-cumulative-ablation
+2026-11-11 22:44	7344de9	codex_gap:1,1,1	e	3	3	4	optimal	0.02	OK	compact-cumulative-ablation

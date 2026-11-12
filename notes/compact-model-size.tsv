@@ -1,0 +1,4 @@
+variant	case	heuristic_upper_bound	binary_variables	lp_bytes	constraint_rows
+compact	aoi_C1355:2,2,1	185	100219	13001702	256898
+compact	aoi_C1355:8,8,4	50	13414	1592265	32671
+compact	codex_gap:1,1,1	4	8	675	18

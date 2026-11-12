@@ -121,3 +121,23 @@ shared/questions.md Q6 已讀：claude@ce1d6e4 使用緊的 resource heads/tails
 沿相同累積 precedence 方向，將反覆展開的 prefix sum 換成單一 z_it 變數。保留原 ASAP/ALAP(heuristic latency)、minimize L、heuristic 上界與 MIP start，讓模型表示方式成為主要變因。z_it=1 iff start_i<=t，窗外視為 0/1 常數；用 monotone、z_vt<=z_u,t-1、sum(z_it-z_i,t-1)<=R_k。由 start_i=late_i-sum_{t=early_i}^{late_i-1} z_it，sink 的 L+sum z_it>=late_i。每列 precedence 最多兩個非零係數，避免 prefix 展開的二次增長。
 
 此處與 claude Q6 共用 step formulation 的數學想法，來源已註明，但本次保留 minimize L 與原時間窗作受控對照，沒有複製對方程式，也不另試 fixed horizon/solver parameters。實驗仍僅兩個 C1355 與 gap，另用小 DAG 的獨立 exact oracle 驗證；正式 src 等待證據，不在此階段擴大整合。
+
+### 精簡 cumulative 階段結果與停止點
+
+獨立 subset-DP / check.py 共 31 個 tiny case 全通過；其中 20 個 status=bound，11 個 status=optimal（gap 加上特別挑選的 10 個 h>opt 小圖，確保實際建模求解），不把 bound case 計為 model 解碼驗證。輸入及輸出保留於 shared/tmp/codex/compact-validation，生成與驗證腳本 notes/check_compact.py。
+
+三個正式 run 全 checker OK，clean build 13.2 秒：
+
+| case | scalar control | prefix cumulative | compact cumulative |
+|---|---:|---:|---:|
+| C1355:2,2,1 | 185（52.40s） | 185（too_large，0.72s） | 185（timelimit，51.52s） |
+| C1355:8,8,4 | 48（51.15s） | 49（52.85s） | 50（timelimit，51.16s） |
+| codex_gap:1,1,1 | 3 optimal | 3 optimal | 3 optimal（0.02s） |
+
+Compact C1355:2,2,1 可建模（100,219 binary、256,898 rows、13,001,702 LP bytes），避免直接 prefix 展開的文字大小 guard；但求解品質仍未提升。所有數字都來自同資源、CPU4–7、Threads4 的既有 control / 新 variant，各僅一次，不宣稱穩定統計差異。背景環境與 wall-clock 結束點仍可能影響求解軌跡。此階段未保留完整 C1355 solver trace，也未量測 root relaxation，無法把失敗直接歸因 presolve 或 simplex；可以確定的是 compact encoding 本身不足以在這組對照降低 latency。
+
+決定：**不採納到 production src**。理由是目標 latency 無收益，而非 runtime 大小；若未來證明較慢但 latency 更好且 <60 秒，仍可採用。精簡模型保存為 notes/compact_ilp.cpp，配合固定 base b376c9b 的 compact_ablation.py、source manifest、模型尺寸表及 compact-ablation.md 可重現。實際 source 與 TSV 的 shared symlink metadata 問題同上，以 manifest 為準。
+
+shared/best.tsv：預設 suite 沒有任何數值改善，保留其他路線更好的紀錄；本輪補登自製 gap optimum=3（在 default76之外），追加精簡模型的驗證來源，不把負結果改寫成新的 best。Q6 已讀、Q7 已告知 prefix 負結果，精簡模型結果另追加通知。
+
+未完成：full-suite compact 評估、root LP 診斷、正式整合及 3 頁報告，均不在本輪有限階段內，沒有啟動。下一步若主持人再授權，先依 claude Q6 對照緊時間窗/UB-1 formulation 與目前寬窗 min-L 的模型大小及 root 行為，聚焦尚未解的 C1355:3,2,2；不再盲目重跑這兩種寬窗 cumulative 表示法。此處按主持人要求停止。
