@@ -142,3 +142,36 @@ mirror 得 `idle_tail`；`L ≥ ceil((N_b+idle_head+idle_tail)/c_b)`（需 T+T' 
 - 處置：程式保留、預設成本很低（head 模型 > 1.5 萬變數直接跳過；合計上限 10 s），測試用 flag `--ends`、`--ends-test`、`--ends-time`。
 - 結構觀察（留給之後的 heuristic）：big2 前段的 AND 大多需要約 10 個 OR，每組只有 2–3 個 AND 共用同一組 OR（set-union knapsack）。
   `unlock_schedule` 的 need 最小貪婪已是「聯集增量最小」；要更好需要「一組 OR 一次解鎖幾個 AND」的比例式選擇。
+
+## 階段 4：自製難測資 suite（`benchmark/hard/`）
+
+動機（AGENTS.md「heuristic 優先」）：benchmark 幾乎全是資源主導，`-h` 已貼著 LB，分不出 heuristic 的好壞。
+做法（sonnet subagent；凍結 binary＝55567d1）：`benchmark/hard/gen_hard.py` 四個 family——
+`layered`（每層三種 kind 混合的隨機分層 DAG）、`chains`（kind 樣式錯相的長鏈＋晚釋放的側邊邏輯）、
+`funnel`（一種 kind 的 feeder 餵給重疊的 consumer 群）、`xor`（parity/adder/multiplier，對照組）。
+搜尋約 1,800 組（電路 × 限制），約四分之一 `-h --htime 0` 高於 LB；約 260 組離線跑 `-e`（30–300 s）。
+流程腳本 `search.py`、`build_manifest.py` 一併保留；原始資料在 `shared/tmp/claude/hard/`。
+
+- 成品：47 個 `.blif`、50 個 case（80–4800 ops），`manifest.tsv` 記錄生成參數、h0/h/best/LB；**42 個已證明最佳**，8 個 open。
+  `gen_hard.py --all --out DIR` 重新生成後 47 檔逐位元相同；manifest 與 `shared/best.tsv`（50 列，note `hard suite`）一致（獨立 subagent 驗證）。
+- 什麼讓 case 變難：規模 250–2500 ops（更小的 random restart 幾乎都能找到最佳）；layered 每層 kind 比例不同、
+  且 `ceil(N_k/c_k)` 約為深度的 0.6–1.2 倍時最容易騙過 heuristic；xor 類從來不難（4 個 case 全部 h=best）。
+
+### 正式評估（note=`stage4: ...`，commit 6111541；252 列全部 checker OK，無逾時，最大 53.09 s）
+- 難測資 `-h`：`latency/best` 幾何平均 **1.00459**（50 個）、1.00485（42 個已證明）；36/50 等於 best；14 個各差 1 step
+  （layered 7、chains 4、funnel 3；例：`layered_s129_n252:5,3,2` 31 vs 30）。`--htime 0` 的平均約 1.03（46/50 高於 best）。
+- 難測資 `-e`：39/50 證明（optimal 或 bound）；48/50 等於 best；2 個 timelimit 高於 best
+  （`layered_s1074_n757:5,4,2` 88 vs 87、`layered_s554_n1785:11,19,9` 68 vs 67——離線較長時間才找到）。沒有任何結果低於 best、沒有 LB 高於 best。
+- 預設 suite：`-h` 68/76 等於 LB；`-e` **72/76** 證明（C1355:2,2,1 這次也證出來了，階段 2 是 timelimit ⇒ 該 case 在時限邊緣，不穩定）；
+  未證明只剩 big2 四組（7518/7512、3763/3758、2516/2508、946/945，皆 too_large）。
+
+### 自製差異測資失效
+`benchmark/claude_gap.blif:1,1,1`：現在 `-h`＝8＝`-e`（bound），只有 `--htime 0` 是 9。random restart 把它解掉了，
+**不再符合「-h 與 -e 不同」**。替代候選：難測資中 `-h` 高於已證明最佳、且 `-e` 在 60 s 內證明的 case，
+最小的是 `layered_s129_n252:5,3,2`（252 ops，`-h` 31、`-e` 30 optimal，6.1 s），可重現（gen_hard.py）。
+缺點是 252 ops 太大，報告裡不好分析成因；想要小的反例，要對「含 restart 的 `-h`」重新搜尋。
+
+### 未嘗試的想法（更新）
+- heuristic 在難測資上的 14 個差 1：local repair／sliding-window 重排（取代純 random restart）、CP 式時間窗傳播判定 L−1 不可行區段。
+- big2：比例式 unlock（一組 OR 解鎖幾個 AND）、lag-aware tail。
+- 穩健性壓力測試（超深、超寬、高 fanout、closure 超過 400 MB 的 fallback）尚未做。

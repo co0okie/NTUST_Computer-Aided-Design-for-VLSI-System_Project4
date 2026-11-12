@@ -1,0 +1,207 @@
+.model chains_s412_n80
+.inputs i0 i1 i2 i3 i4 i5 i6 i7
+.outputs n6 n10 n13 n16 n19 n21 n76 n77 n78 n79
+.names i5 i3 n0
+1- 1
+-1 1
+.names i4 i3 i7 n1
+1-- 1
+-1- 1
+--1 1
+.names i6 i2 n2
+1- 1
+-1 1
+.names i2 n3
+0 1
+.names i3 i5 n4
+1- 1
+-1 1
+.names i6 i0 n5
+1- 1
+-1 1
+.names i3 i2 n6
+1- 1
+-1 1
+.names i1 i3 n7
+1- 1
+-1 1
+.names i2 i0 n8
+1- 1
+-1 1
+.names n4 n1 n7 n9
+111 1
+.names i1 n7 n10
+1- 1
+-1 1
+.names i2 i0 n11
+1- 1
+-1 1
+.names n3 n12
+0 1
+.names n0 i2 n13
+11 1
+.names n2 n5 n14
+1- 1
+-1 1
+.names i1 n3 n15
+1- 1
+-1 1
+.names n11 n14 n16
+11 1
+.names n9 n15 n17
+1- 1
+-1 1
+.names n2 n18
+0 1
+.names n12 i0 n19
+11 1
+.names n12 n20
+0 1
+.names n5 i2 i1 n21
+1-- 1
+-1- 1
+--1 1
+.names n12 n22
+0 1
+.names i1 n23
+0 1
+.names i6 n8 n24
+11 1
+.names i0 i1 n25
+1- 1
+-1 1
+.names i5 n23 i4 n26
+111 1
+.names i6 n8 n27
+1- 1
+-1 1
+.names n24 n25 n28
+1- 1
+-1 1
+.names n25 n24 n29
+11 1
+.names n26 n8 n30
+1- 1
+-1 1
+.names n27 i3 i6 n31
+111 1
+.names n28 n32
+0 1
+.names n29 i1 i4 n33
+111 1
+.names n30 n28 i2 n34
+1-- 1
+-1- 1
+--1 1
+.names n31 n0 n35
+11 1
+.names n32 i7 n36
+11 1
+.names n33 i5 n37
+1- 1
+-1 1
+.names n34 n38
+0 1
+.names n35 n39
+0 1
+.names n36 n22 n40
+11 1
+.names n37 n38 i0 n41
+1-- 1
+-1- 1
+--1 1
+.names n38 n39 i6 n42
+111 1
+.names n39 i5 i2 n43
+1-- 1
+-1- 1
+--1 1
+.names n40 n43 n44
+1- 1
+-1 1
+.names n41 i4 n45
+11 1
+.names n42 n40 n46
+1- 1
+-1 1
+.names n43 i4 n47
+11 1
+.names n44 n48
+0 1
+.names n45 n47 n49
+11 1
+.names n46 n45 n50
+1- 1
+-1 1
+.names n47 n18 i0 n51
+111 1
+.names n48 n50 n52
+11 1
+.names n49 n20 n53
+1- 1
+-1 1
+.names n50 n54
+0 1
+.names n51 n55
+0 1
+.names n52 n54 n56
+11 1
+.names n53 n52 n57
+1- 1
+-1 1
+.names n54 i5 n58
+11 1
+.names n55 i5 n59
+1- 1
+-1 1
+.names n56 n15 n60
+1- 1
+-1 1
+.names n57 n9 i5 n61
+111 1
+.names n58 n57 n62
+1- 1
+-1 1
+.names n59 i2 n63
+11 1
+.names n60 n64
+0 1
+.names n61 i5 i1 n65
+111 1
+.names n62 n60 n66
+1- 1
+-1 1
+.names n63 i1 n67
+11 1
+.names n64 i4 n68
+11 1
+.names n65 n12 i3 n69
+1-- 1
+-1- 1
+--1 1
+.names n66 n70
+0 1
+.names n67 n71
+0 1
+.names n68 n71 n72
+11 1
+.names n69 i0 n73
+1- 1
+-1 1
+.names n70 i5 n74
+11 1
+.names n71 i0 n75
+1- 1
+-1 1
+.names n72 n15 n76
+1- 1
+-1 1
+.names n73 i5 n77
+11 1
+.names n74 n17 i5 n78
+1-- 1
+-1- 1
+--1 1
+.names n75 n3 i6 n79
+111 1
+.end

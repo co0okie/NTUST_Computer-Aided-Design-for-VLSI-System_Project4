@@ -1,0 +1,376 @@
+.model funnel_s510_n135
+.inputs i0 i1 i2 i4 i5 i6 i10 i11 i13 i14 i15 i16 i17 i18 i19 i20 i21 i22 i23 i24 i25 i26 i28 i29 i30 i31 i32 i33 i34 i35 i36 i37 i38 i39 i40 i41 i43 i44 i45 i46 i47 i48 i49 i50 i51 i52 i53 i54 i55
+.outputs n22 n27 n43 n80 n85 n93 n134
+.names i18 i10 n0
+1- 1
+-1 1
+.names i41 i16 n1
+1- 1
+-1 1
+.names i21 i13 n2
+1- 1
+-1 1
+.names i14 i15 n3
+1- 1
+-1 1
+.names i16 i46 n4
+1- 1
+-1 1
+.names i39 i40 n5
+1- 1
+-1 1
+.names i32 i13 n6
+1- 1
+-1 1
+.names i43 i28 n7
+1- 1
+-1 1
+.names i49 i54 n8
+1- 1
+-1 1
+.names i23 i1 n9
+1- 1
+-1 1
+.names i31 i44 n10
+1- 1
+-1 1
+.names i5 i43 n11
+1- 1
+-1 1
+.names i34 i46 n12
+1- 1
+-1 1
+.names i21 i0 n13
+1- 1
+-1 1
+.names i49 i17 n14
+1- 1
+-1 1
+.names i1 i35 n15
+1- 1
+-1 1
+.names i19 i53 n16
+1- 1
+-1 1
+.names i43 i17 n17
+1- 1
+-1 1
+.names i51 i53 n18
+1- 1
+-1 1
+.names i45 i0 n19
+1- 1
+-1 1
+.names i10 i34 n20
+1- 1
+-1 1
+.names i5 i28 n21
+1- 1
+-1 1
+.names i26 i1 n22
+1- 1
+-1 1
+.names i46 i48 n23
+1- 1
+-1 1
+.names i38 i31 n24
+1- 1
+-1 1
+.names i15 i52 n25
+1- 1
+-1 1
+.names i21 i6 n26
+1- 1
+-1 1
+.names i16 i38 n27
+1- 1
+-1 1
+.names i0 i19 n28
+1- 1
+-1 1
+.names i37 i17 n29
+1- 1
+-1 1
+.names i13 i2 n30
+1- 1
+-1 1
+.names i20 i1 n31
+1- 1
+-1 1
+.names i16 i33 n32
+1- 1
+-1 1
+.names i11 i10 n33
+1- 1
+-1 1
+.names i25 i50 n34
+1- 1
+-1 1
+.names i48 i17 n35
+1- 1
+-1 1
+.names i5 i18 n36
+1- 1
+-1 1
+.names i32 i19 n37
+1- 1
+-1 1
+.names i50 i44 n38
+1- 1
+-1 1
+.names i29 i30 n39
+1- 1
+-1 1
+.names i18 i44 n40
+1- 1
+-1 1
+.names i0 i50 n41
+1- 1
+-1 1
+.names i44 i48 n42
+1- 1
+-1 1
+.names i55 i49 n43
+1- 1
+-1 1
+.names i36 i23 n44
+1- 1
+-1 1
+.names i53 i19 n45
+1- 1
+-1 1
+.names i4 i31 n46
+1- 1
+-1 1
+.names i51 i23 n47
+1- 1
+-1 1
+.names i47 i49 n48
+1- 1
+-1 1
+.names i11 i49 n49
+1- 1
+-1 1
+.names i48 i49 n50
+1- 1
+-1 1
+.names i24 i26 n51
+1- 1
+-1 1
+.names i30 i22 n52
+1- 1
+-1 1
+.names i37 i50 n53
+1- 1
+-1 1
+.names i17 i37 n54
+1- 1
+-1 1
+.names i31 i29 n55
+1- 1
+-1 1
+.names n3 n0 n56
+11 1
+.names n3 n5 n2 n57
+111 1
+.names n4 n6 n5 n58
+111 1
+.names n7 n6 n8 n59
+111 1
+.names n9 n11 n60
+11 1
+.names n10 n11 n13 n12 n61
+1111 1
+.names n14 n13 n15 n12 n62
+1111 1
+.names n17 n16 n15 n63
+111 1
+.names n16 n18 n64
+11 1
+.names n20 n19 n65
+11 1
+.names n23 n21 n20 n66
+111 1
+.names n23 n25 n67
+11 1
+.names n25 n24 n68
+11 1
+.names n29 n28 n26 n69
+111 1
+.names n31 n28 n70
+11 1
+.names n32 n31 n30 n71
+111 1
+.names n35 n33 n32 n34 n72
+1111 1
+.names n34 n37 n36 n73
+111 1
+.names n38 n39 n37 n36 n74
+1111 1
+.names n39 n40 n38 n41 n75
+1111 1
+.names n40 n42 n41 n76
+111 1
+.names n45 n44 n42 n77
+111 1
+.names n45 n46 n78
+11 1
+.names n48 n49 n47 n46 n79
+1111 1
+.names n48 n50 n51 n49 n80
+1111 1
+.names n52 n53 n81
+11 1
+.names n52 n53 n55 n54 n82
+1111 1
+.names n54 n0 n55 n1 n83
+1111 1
+.names n58 n59 n57 n56 n84
+1--- 1
+-1-- 1
+--1- 1
+---1 1
+.names n60 n61 n58 n85
+1-- 1
+-1- 1
+--1 1
+.names n60 n63 n62 n86
+1-- 1
+-1- 1
+--1 1
+.names n63 n62 n64 n87
+1-- 1
+-1- 1
+--1 1
+.names n67 n64 n88
+1- 1
+-1 1
+.names n66 n69 n89
+1- 1
+-1 1
+.names n68 n70 n69 n90
+1-- 1
+-1- 1
+--1 1
+.names n70 n72 n73 n71 n91
+1--- 1
+-1-- 1
+--1- 1
+---1 1
+.names n73 n74 n75 n92
+1-- 1
+-1- 1
+--1 1
+.names n76 n75 n74 n77 n93
+1--- 1
+-1-- 1
+--1- 1
+---1 1
+.names n77 n76 n79 n78 n94
+1--- 1
+-1-- 1
+--1- 1
+---1 1
+.names n81 n79 n95
+1- 1
+-1 1
+.names n83 n81 n82 n96
+1-- 1
+-1- 1
+--1 1
+.names n56 n82 n57 n83 n97
+1--- 1
+-1-- 1
+--1- 1
+---1 1
+.names n92 n72 n98
+1- 1
+-1 1
+.names n98 n96 n99
+11 1
+.names n99 n97 n100
+1- 1
+-1 1
+.names n100 n92 n101
+11 1
+.names n101 n102
+0 1
+.names n102 n91 n103
+11 1
+.names n103 n83 n104
+1- 1
+-1 1
+.names n104 n105
+0 1
+.names n105 n61 n106
+1- 1
+-1 1
+.names n106 n83 n107
+11 1
+.names n107 n84 n108
+1- 1
+-1 1
+.names n108 n87 n109
+11 1
+.names n109 n79 n110
+1- 1
+-1 1
+.names n110 n65 n111
+11 1
+.names n111 n87 n112
+1- 1
+-1 1
+.names n112 n95 n113
+11 1
+.names n113 n92 n114
+1- 1
+-1 1
+.names n114 n115
+0 1
+.names n115 n61 n116
+1- 1
+-1 1
+.names n116 n90 n117
+11 1
+.names n117 n118
+0 1
+.names n118 n88 n119
+11 1
+.names n119 n63 n120
+11 1
+.names n120 n94 n121
+11 1
+.names n121 n89 n122
+1- 1
+-1 1
+.names n122 n96 n123
+11 1
+.names n123 n65 n124
+1- 1
+-1 1
+.names n124 n75 n125
+1- 1
+-1 1
+.names n125 n97 n126
+1- 1
+-1 1
+.names n126 n76 n127
+11 1
+.names n127 n74 n128
+1- 1
+-1 1
+.names n128 n86 n129
+11 1
+.names n129 n94 n130
+1- 1
+-1 1
+.names n130 n89 n131
+11 1
+.names n131 n132
+0 1
+.names n132 n94 n133
+11 1
+.names n133 n58 n134
+1- 1
+-1 1
+.end

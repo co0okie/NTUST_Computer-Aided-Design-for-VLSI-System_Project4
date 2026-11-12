@@ -1,0 +1,51 @@
+case	family	args	ops	depth	N_and	N_or	N_not	h0_latency	h_latency	best_latency	lower_bound	status	mlrcs_commit
+chains_s412_n80:3,2,1	chains	chains seed=412 chains=4 length=14 side=24 cross=26 period=4	80	15	29	36	15	19	18	18	18	optimal	55567d1
+chains_s384_n116:4,5,2	chains	chains seed=384 chains=10 length=11 side=6 cross=18 period=3	116	12	55	40	21	15	14	14	14	optimal	55567d1
+chains_s378_n238:2,2,1	chains	chains seed=378 chains=5 length=39 side=43 cross=39 period=6	238	41	86	99	53	56	54	54	54	optimal	55567d1
+chains_s381_n248:4,4,4	chains	chains seed=381 chains=9 length=22 side=50 cross=49 period=6	248	24	107	106	35	29	27	27	27	optimal	55567d1
+chains_s1141_n389:2,3,2	chains	chains seed=1141 chains=6 length=59 side=35 cross=43 period=6	389	59	140	152	97	78	74	74	74	optimal	55567d1
+chains_s1107_n462:4,3,2	chains	chains seed=1107 chains=8 length=53 side=38 cross=18 period=5	462	54	184	174	104	63	60	60	60	optimal	55567d1
+chains_s1122_n546:5,5,4	chains	chains seed=1122 chains=13 length=40 side=26 cross=31 period=7	546	42	195	221	130	47	45	45	45	optimal	55567d1
+chains_s1108_n561:6,2,2	chains	chains seed=1108 chains=6 length=88 side=33 cross=28 period=6	561	91	221	214	126	116	111	110	110	optimal	55567d1
+chains_s1101_n620:3,3,2	chains	chains seed=1101 chains=8 length=73 side=36 cross=26 period=6	620	76	238	244	138	96	91	90	82	open	55567d1
+chains_s1115_n994:6,5,1	chains	chains seed=1115 chains=10 length=85 side=144 cross=33 period=5	994	87	599	312	83	107	106	105	105	optimal	55567d1
+chains_s580_n1559:10,21,3	chains	chains seed=580 chains=14 length=87 side=341 cross=42 period=4	1559	90	596	696	267	98	97	97	97	optimal	55567d1
+chains_s579_n2453:16,9,3	chains	chains seed=579 chains=23 length=102 side=107 cross=43 period=6	2453	105	1128	957	368	128	127	127	124	open	55567d1
+chains_s575_n2879:12,15,6	chains	chains seed=575 chains=24 length=105 side=359 cross=21 period=5	2879	108	1173	1073	633	113	113	112	112	optimal	55567d1
+chains_s2005_n4600:10,18,6	chains	chains seed=2005 chains=25 length=160 side=600 cross=40 period=5	4600	162	1560	2123	917	178	177	177	167	open	55567d1
+funnel_s481_n88:2,4,1	funnel	funnel seed=481 feeders=41 stages=4 tail=10 overlap=3	88	15	30	58	0	20	19	19	19	optimal	55567d1
+funnel_s456_n89:1,2,1	funnel	funnel seed=456 feeders=38 stages=2 tail=23 overlap=4	89	26	28	59	2	38	37	37	37	optimal	55567d1
+funnel_s493_n89:1,2,1	funnel	funnel seed=493 feeders=37 stages=3 tail=21 overlap=4	89	25	29	57	3	40	39	39	39	optimal	55567d1
+funnel_s468_n91:1,2,1	funnel	funnel seed=468 feeders=44 stages=1 tail=25 overlap=4	91	27	29	55	7	33	32	32	32	optimal	55567d1
+funnel_s468_n91:1,3,1	funnel	funnel seed=468 feeders=44 stages=1 tail=25 overlap=4	91	27	29	55	7	31	30	30	30	optimal	55567d1
+funnel_s512_n103:2,4,1	funnel	funnel seed=512 feeders=57 stages=1 tail=18 overlap=3	103	20	38	63	2	21	20	20	20	optimal	55567d1
+funnel_s552_n117:1,2,1	funnel	funnel seed=552 feeders=54 stages=1 tail=36 overlap=4	117	38	42	71	4	48	46	46	46	optimal	55567d1
+funnel_s510_n135:1,2,1	funnel	funnel seed=510 feeders=56 stages=2 tail=37 overlap=4	135	40	44	86	5	53	52	52	52	optimal	55567d1
+funnel_s1167_n235:1,2,1	funnel	funnel seed=1167 feeders=87 stages=4 tail=69 overlap=4	235	74	82	143	10	109	106	106	106	optimal	55567d1
+funnel_s1210_n243:4,2,1	funnel	funnel seed=1210 feeders=101 stages=4 tail=49 overlap=4	243	54	152	87	4	72	72	71	71	optimal	55567d1
+funnel_s1200_n281:1,2,1	funnel	funnel seed=1200 feeders=105 stages=4 tail=79 overlap=4	281	84	97	171	13	136	135	135	135	optimal	55567d1
+funnel_s1199_n284:1,2,1	funnel	funnel seed=1199 feeders=99 stages=3 tail=100 overlap=4	284	104	111	157	16	143	142	141	141	optimal	55567d1
+funnel_s1182_n302:1,2,1	funnel	funnel seed=1182 feeders=111 stages=4 tail=90 overlap=4	302	95	109	187	6	153	149	149	149	optimal	55567d1
+funnel_s1161_n394:1,2,1	funnel	funnel seed=1161 feeders=158 stages=3 tail=99 overlap=4	394	103	152	233	9	166	163	162	162	optimal	55567d1
+layered_s218_n108:4,5,1	layered	layered seed=218 layers=12 width=14 profile=hourglass phased=1 fanmax=3 back=1	108	12	56	36	16	17	16	16	16	optimal	55567d1
+layered_s147_n117:6,4,3	layered	layered seed=147 layers=9 width=13 profile=uniform phased=1 fanmax=3 back=2	117	9	56	41	20	13	12	12	12	optimal	55567d1
+layered_s123_n124:2,1,2	layered	layered seed=123 layers=31 width=4 profile=uniform phased=1 fanmax=3 back=2	124	31	53	35	36	41	39	39	39	optimal	55567d1
+layered_s129_n252:5,3,2	layered	layered seed=129 layers=21 width=12 profile=uniform phased=1 fanmax=3 back=2	252	21	123	75	54	32	31	30	30	optimal	55567d1
+layered_s1071_n320:5,8,4	layered	layered seed=1071 layers=20 width=16 profile=uniform phased=1 fanmax=2 back=2	320	20	94	144	82	23	22	22	22	optimal	55567d1
+layered_s143_n418:4,4,3	layered	layered seed=143 layers=38 width=11 profile=uniform phased=1 fanmax=3 back=1	418	38	158	161	99	49	47	47	47	optimal	55567d1
+layered_s1008_n616:8,8,5	layered	layered seed=1008 layers=28 width=22 profile=uniform phased=1 fanmax=3 back=2	616	28	252	254	110	35	35	34	34	optimal	55567d1
+layered_s1008_n616:8,8,6	layered	layered seed=1008 layers=28 width=22 profile=uniform phased=1 fanmax=3 back=2	616	28	252	254	110	35	35	34	34	optimal	55567d1
+layered_s1074_n757:5,4,2	layered	layered seed=1074 layers=67 width=19 profile=diamond phased=1 fanmax=3 back=2	757	67	363	262	132	90	87	87	84	open	55567d1
+layered_s1041_n762:4,6,3	layered	layered seed=1041 layers=70 width=18 profile=hourglass phased=1 fanmax=3 back=1	762	70	273	316	173	79	77	77	77	optimal	55567d1
+layered_s1076_n851:8,8,6	layered	layered seed=1076 layers=37 width=23 profile=uniform phased=1 fanmax=3 back=4	851	37	323	357	171	49	48	47	47	optimal	55567d1
+layered_s1006_n1188:14,9,8	layered	layered seed=1006 layers=44 width=27 profile=uniform phased=1 fanmax=3 back=1	1188	44	524	412	252	49	49	48	48	optimal	55567d1
+layered_s557_n1782:12,16,7	layered	layered seed=557 layers=54 width=33 profile=uniform phased=1 fanmax=3 back=2	1782	54	686	711	385	63	63	62	62	optimal	55567d1
+layered_s554_n1785:11,19,9	layered	layered seed=554 layers=59 width=51 profile=diamond phased=1 fanmax=3 back=2	1785	59	666	675	444	69	68	67	66	open	55567d1
+layered_s559_n1926:8,6,4	layered	layered seed=559 layers=90 width=36 profile=diamond phased=1 fanmax=3 back=3	1926	90	781	715	430	126	125	125	123	open	55567d1
+layered_s561_n2627:16,20,7	layered	layered seed=561 layers=71 width=37 profile=uniform phased=1 fanmax=3 back=2	2627	71	1093	931	603	89	88	88	87	open	55567d1
+layered_s2003_n3616:12,15,12	layered	layered seed=2003 layers=100 width=60 profile=hourglass phased=1 fanmax=3 back=3	3616	100	1292	1595	729	124	123	123	117	open	55567d1
+layered_s2001_n4800:49,39,20	layered	layered seed=2001 layers=60 width=80 profile=uniform phased=1 fanmax=3 back=3	4800	60	1886	1891	1023	65	64	64	64	optimal	55567d1
+xor_s261_n72:4,5,3	xor	xor seed=261 kind=parity n=18 trees=3 m=7	72	9	36	18	18	12	12	12	12	optimal	55567d1
+xor_s267_n96:3,3,2	xor	xor seed=267 kind=parity n=22 trees=3 m=9	96	12	48	24	24	18	18	18	18	optimal	55567d1
+xor_s265_n192:5,6,4	xor	xor seed=265 kind=parity n=9 trees=6 m=9	192	12	96	48	48	21	21	21	21	optimal	55567d1
+xor_s265_n192:8,5,7	xor	xor seed=265 kind=parity n=9 trees=6 m=9	192	12	96	48	48	15	15	15	15	optimal	55567d1
