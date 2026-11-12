@@ -40,3 +40,9 @@ HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double 
 // clock.elapsed() < deadline_elapsed and r.latency > r.lower_bound; only ever lowers r.latency.
 void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
                       double deadline_elapsed);
+
+// List and unlock scheduling with the priority `key` (larger first), on g itself or, when
+// `on_mirror`, on its mirror graph (key indexed by mirror op), then forward-backward rounds from
+// the best result. Only ever lowers r.latency; stops at r.lower_bound or the deadline.
+void guided_schedule(OpGraph const &g, HeuristicResult &r, std::vector<std::int64_t> const &key,
+                     bool on_mirror, Clock const &clock, double deadline_elapsed);

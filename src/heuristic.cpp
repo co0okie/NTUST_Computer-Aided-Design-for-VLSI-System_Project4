@@ -303,3 +303,62 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
         }
     }
 }
+
+void guided_schedule(OpGraph const &g, HeuristicResult &r, std::vector<std::int64_t> const &key,
+                     bool on_mirror, Clock const &clock, double deadline_elapsed) {
+    if (g.n == 0 || r.latency <= r.lower_bound) return;
+    auto const mirror = reversed(g);
+    auto const &graph = on_mirror ? mirror : g;
+    auto const closure = descendants(graph);
+    std::vector<std::int32_t> mirror_tail(g.n);
+    for (std::int32_t i = 0; i < g.n; ++i) mirror_tail[g.n - 1 - i] = r.head[i] - 1;
+    int bottleneck = 0;
+    {
+        std::int64_t load = -1;
+        for (int k = 0; k < OP_KINDS; ++k) {
+            if (g.count[k] == 0) continue;
+            auto const l = (static_cast<std::int64_t>(g.count[k]) + g.limit[k] - 1) / g.limit[k];
+            if (l > load) load = l, bottleneck = k;
+        }
+    }
+    std::vector<std::int32_t> best;
+    std::int32_t best_latency = 0;
+    auto const consider = [&](std::vector<std::int32_t> step) {
+        ++r.passes;
+        if (on_mirror) step = mirror_steps(step);
+        auto const latency = latency_of(step);
+        if (best_latency == 0 || latency < best_latency) {
+            best_latency = latency;
+            best = step;
+        }
+        if (latency < r.latency) {
+            r.latency = latency;
+            r.step = std::move(step);
+        }
+    };
+    consider(list_schedule(graph, key));
+    for (int variant = 0; variant < 4 && !closure.empty(); ++variant) {
+        if (clock.elapsed() >= deadline_elapsed) break;
+        UnlockOptions o;
+        o.target_kinds = variant < 2 ? 1U << bottleneck : 7U;
+        o.driven_kinds = variant % 2 == 0 ? 7U & ~(1U << bottleneck) : 7U;
+        consider(unlock_schedule(graph, closure, key, o));
+    }
+    // Forward-backward rounds from the best guided schedule (in original indexing from here on)
+    auto current = best;
+    std::vector<std::int64_t> k2(g.n);
+    for (int stale = 0; stale < 4 && r.latency > r.lower_bound;) {
+        if (clock.elapsed() >= deadline_elapsed) break;
+        auto const big = static_cast<std::int64_t>(g.n) + latency_of(current) + 2;
+        for (std::int32_t i = 0; i < g.n; ++i)
+            k2[g.n - 1 - i] = static_cast<std::int64_t>(current[i]) * big + mirror_tail[g.n - 1 - i];
+        auto const back = mirror_steps(list_schedule(mirror, k2));
+        for (std::int32_t i = 0; i < g.n; ++i)
+            k2[i] = static_cast<std::int64_t>(latency_of(back) + 1 - back[i]) * big + r.tail[i];
+        current = list_schedule(g, k2);
+        auto const before = r.latency;
+        if (latency_of(back) < r.latency) r.latency = latency_of(back), r.step = back;
+        if (latency_of(current) < r.latency) r.latency = latency_of(current), r.step = current;
+        stale = r.latency < before ? 0 : stale + 1;
+    }
+}

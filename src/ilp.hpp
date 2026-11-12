@@ -9,11 +9,25 @@
 #include "opgraph.hpp"
 #include "result.hpp"
 
+// Checkpoint relaxation of the two ends of the schedule (see ilp.cpp), used when the full model
+// is too large.
+struct EndsOptions {
+    bool force = false;         // test hook: run it even when the full model would be solved
+    bool guide = true;          // also list-schedule with priorities from its solutions
+    std::int32_t head_span = 0; // T for the first steps; 0: from the heuristic schedule
+    std::int32_t tail_span = 0; // T' for the last steps; 0: from the heuristic schedule
+    std::int32_t extra = 2;     // added to the spans taken from the heuristic schedule
+    std::int32_t checkpoints = 8;
+    double gamma = 1;           // > 1: checkpoints denser near the start
+    double time = 20;           // seconds for both Gurobi runs together
+    std::int64_t max_nonzeros = 3'000'000;
+};
+
 struct IlpOptions {
     std::string gurobi_cl;   // from find_gurobi_cl()
     std::string keep_dir;    // keep the LP/solution/log files here; empty: temporary, deleted
     int threads = 0;         // Gurobi Threads parameter; 0 = Gurobi's default
-    bool use_ends_bound = false; // experimental prefix/suffix relaxation when the model is too large
+    EndsOptions ends;
     std::int64_t max_vars = 400'000; // do not build a model larger than this
 };
 
@@ -34,6 +48,7 @@ struct ExactResult {
     std::int32_t lower_bound = 0;
     std::int64_t num_vars = 0; // variables of the last ILP built
     std::int32_t solves = 0;   // Gurobi runs
+    std::int32_t ends_bound = 0; // lower bound from the end relaxations (0: not run)
     std::string note;          // solver trouble that was survived, for --stats
 };
 

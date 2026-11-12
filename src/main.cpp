@@ -26,7 +26,10 @@ constexpr char const *USAGE =
     "  --htime SECONDS  -h: time spent on randomized improvement (default 10)\n"
     "  --threads N      Gurobi threads (default: Gurobi's choice)\n"
     "  --keep DIR       keep the ILP model, MIP start, solution and Gurobi log in DIR\n"
-    "  --stats          print one line of statistics to stderr\n";
+    "  --stats          print one line of statistics to stderr\n"
+    "  --ends H,T,M[,G] -e: end relaxations with spans H (head) and T (tail), M checkpoints,\n"
+    "                   spacing exponent G (0 = automatic span); --ends-test: run them always\n"
+    "  --ends-time S    -e: seconds for the end relaxations (default 20)\n";
 
 enum class Mode { Heuristic, Exact };
 
@@ -39,7 +42,32 @@ struct Options {
     int threads = 0;
     std::string keep_dir;
     bool stats = false;
+    EndsOptions ends;
 };
+
+// "H,T,M" or "H,T,M,G"
+Result<Unit> parse_ends(char const *text, EndsOptions &ends) {
+    char *end = nullptr;
+    long v[3] = {0, 0, 0};
+    char const *at = text;
+    for (int i = 0; i < 3; ++i) {
+        errno = 0;
+        v[i] = std::strtol(at, &end, 10);
+        if (end == at || errno != 0 || v[i] < 0 || v[i] > 1'000'000 || (i < 2 && *end != ',') ||
+            (i == 2 && *end != ',' && *end != '\0'))
+            return err(std::string("bad value for --ends: ") + text);
+        at = end + 1;
+    }
+    ends.head_span = static_cast<std::int32_t>(v[0]);
+    ends.tail_span = static_cast<std::int32_t>(v[1]);
+    ends.checkpoints = static_cast<std::int32_t>(std::max(1L, v[2]));
+    if (*end == ',') {
+        ends.gamma = std::strtod(end + 1, &end);
+        if (*end != '\0' || !(ends.gamma > 0) || ends.gamma > 10)
+            return err(std::string("bad value for --ends: ") + text);
+    }
+    return Unit{};
+}
 
 Result<long> parse_int(char const *text, char const *what) {
     char *end = nullptr;
@@ -84,6 +112,13 @@ Result<Options> parse_args(int argc, char **argv) {
             TRY(auto const v, parse_int(value, "--threads"));
             if (v < 0) return err("bad value for --threads");
             o.threads = static_cast<int>(v);
+        } else if (flag == "--ends" || flag == "--ends-test") {
+            TRY_VOID(parse_ends(value, o.ends));
+            o.ends.force = flag == "--ends-test";
+        } else if (flag == "--ends-time") {
+            char *end = nullptr;
+            o.ends.time = std::strtod(value, &end);
+            if (*end != '\0' || !(o.ends.time >= 0)) return err("bad value for --ends-time");
         } else if (flag == "--keep") {
             o.keep_dir = value;
         } else {
@@ -130,6 +165,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
     ilp.gurobi_cl = gurobi_cl;
     ilp.keep_dir = o.keep_dir;
     ilp.threads = o.threads;
+    ilp.ends = o.ends;
     auto exact = exact_schedule(graph, found, ilp, clock);
     if (exact.status == ExactStatus::TooLarge && exact.latency > exact.lower_bound) {
         // The model is too big to solve: spend the remaining time on randomized heuristics
@@ -152,7 +188,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
         std::cerr << "mlrcs-stats mode=e latency=" << final_schedule.latency
                   << " heuristic=" << heuristic.latency << " lower_bound=" << exact.lower_bound
                   << " status=" << (valid ? exact_status_name(exact.status) : "invalid")
-                  << " vars=" << exact.num_vars << " solves=" << exact.solves
+                  << " ends_lb=" << exact.ends_bound << " vars=" << exact.num_vars << " solves=" << exact.solves
                   << " note=" << (exact.note.empty() ? "-" : exact.note)
                   << " ops=" << netlist.num_ops() << " time=" << clock.elapsed() << '\n';
     return Unit{};

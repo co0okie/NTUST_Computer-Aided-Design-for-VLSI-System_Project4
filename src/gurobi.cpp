@@ -2,6 +2,7 @@
 
 #include <cerrno>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <fcntl.h>
@@ -186,8 +187,14 @@ Result<GurobiResult> run_gurobi(std::string const &gurobi_cl, GurobiJob const &j
 
     auto const bound_at = log.rfind("best bound ");
     if (bound_at != std::string::npos) {
-        result.best_bound = std::strtod(log.c_str() + bound_at + 11, nullptr);
-        result.has_bound = true;
+        // "best bound -" (interrupted before the root LP ended) is no bound at all
+        char const *const text = log.c_str() + bound_at + 11;
+        char *end = nullptr;
+        auto const v = std::strtod(text, &end);
+        if (end != text && std::isfinite(v)) {
+            result.best_bound = v;
+            result.has_bound = true;
+        }
     }
 
     std::ifstream sol(job.result_file);
