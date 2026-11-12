@@ -124,3 +124,21 @@ baseline 的 lower bound（critical path 與 `ceil(N_k/c_k)`）與 height-priori
 - **退步**：C1355:2,2,1 在階段 1（預設 simplex）15 s 就在 root LP 證明 infeasible，換成 barrier+Presolve=2 後 49 s 逾時。
   兩組設定各擅長一個 case；i8:8,8,4 也從 2.8 s 變 21.8 s。下一步：找單一設定或做 portfolio。
 - `shared/best.tsv`：72/76 個 benchmark case 已證明最佳（含階段 1 證明的 C1355:2,2,1）；剩 big2 四組。
+
+## 階段 3：big2 的粗時間格（checkpoint）closure 放鬆——負結果
+
+動機：big2 的差距來自 AND 機器開頭／結尾的閒置；per-op head + Jackson 看不到「多個 AND 的祖先集合取聯集」的效應。
+模型（`ends_relaxation`，`src/ilp.cpp`，opus subagent 實作）：checkpoint `0=τ_0<…<τ_m=T`，`z_{i,j}`＝op i 在 τ_j 以前完成；
+monotone、closure（`z_{i,j} ≤ z_{p,j'}`）、每段容量 `c_k(τ_j−τ_{j−1})`，最大化前 T 步的瓶頸 op 數 M ⇒ `idle_head ≥ c_b·T − M`；
+mirror 得 `idle_tail`；`L ≥ ceil((N_b+idle_head+idle_tail)/c_b)`（需 T+T' ≤ LB）。只用 Gurobi 的 proven bound，不用 incumbent。
+
+- 正確性：12 個已知最佳的電路 × 4 組限制 × 3 組 (T,T',m) = 144 組，135 組算出 bound，沒有一個超過最佳值（106 組恰等於最佳），見 `shared/tmp/claude/ck/sanity.tsv`。
+- big2 結果：四組的 LB 都沒有提高（7512 / 3758 / 2508 / 945），latency 也沒有降低（7518 / 3763 / 2516 / 946）。
+  - 能解完的模型（≲1 萬變數）只證得出「第一個 AND 的 head 之前」那段顯而易見的 idle（1,1,1：10；8,8,4：40）。
+    原因：LP relaxation 可以把每個 AND 需要的 OR 各取一部分，看不到聯集效應；整數 bound 要靠 branching，超過 1 萬變數就做不完
+    （1,1,1 需要 T≈21，1.6–4.1 萬變數；T=17 每步一個 checkpoint 離線 60 s 也沒解完）。
+  - guided schedule（用 z 的解當 priority）：T=7 的精確解顯示 8,8,4 前 7 步可做 16 個 AND（heuristic 只做 3 個），
+    但照它排完再做 FBI，latency 沒有變好——前段搶快，後段就缺 AND 可做。⇒ **開頭的閒置不是 big2 差距的全部**，瓶頸可能在中後段的供料。
+- 處置：程式保留、預設成本很低（head 模型 > 1.5 萬變數直接跳過；合計上限 10 s），測試用 flag `--ends`、`--ends-test`、`--ends-time`。
+- 結構觀察（留給之後的 heuristic）：big2 前段的 AND 大多需要約 10 個 OR，每組只有 2–3 個 AND 共用同一組 OR（set-union knapsack）。
+  `unlock_schedule` 的 need 最小貪婪已是「聯集增量最小」；要更好需要「一組 OR 一次解鎖幾個 AND」的比例式選擇。
