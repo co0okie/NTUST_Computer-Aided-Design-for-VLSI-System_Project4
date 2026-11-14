@@ -226,3 +226,11 @@ Stage1於1df4212收尾。Stage2實作adaptive critical-path destroy及beam16重�
 詳細推導、完整數據、正exact toy（8個獨立ops，2資源，8→4）、120小圖單調性與lane檢查、23CLI checker、來源hash與重現方式見notes/hard-order-stage2.md；五正式pilot列已入codex-results.tsv。Beam保留為MLRCS_ORDER_METHOD=beam研究開關，預設仍single，不採用零收益額外成本。已讀claude stage5/6，最新hard geo1.00145；本路線尚未以新增搜尋取得因果收益。
 
 下一階段可驗證single搜尋的選擇規則：雖允許best+1，現有全鄰域lexicographic greedy只要找到等長候選就拒絕真正退步；改為固定seed的annealing或first-admissible，是同路線的小修改。stage2本身到此收尾。
+
+## Hard stage3：真正Metropolis接受的single-order，仍為負結果
+
+Stage2已commit0c878af。Stage3針對名義退步未發生的問題，改逐個隨機候選Metropolis acceptance（E=latency+0.2 normalized pressure，T=.4→.02，8work epochs），允許best+1、保留best-ever。相同五pilot全check.py OK，31/72/35/113/48仍不變；wall11.05–11.33秒，350M work、每case7restart。實際42次uphill/259215等長/2次下降，沒有低於seed，故本次退步策略不採用預設，也未全50。
+
+METHOD=anneal為研究開關，預設single維持。正toy12ops/2資源8→6、Metropolis接受/拒絕測試、120小圖與23anneal CLI輸出通過。來源hash、原始輸出、checker與重現腳本保留，詳見notes/hard-order-stage3.md；5筆pilot進results、questions已通知、best audit無strict提升。尚未以新增order搜尋取得hard-suite因果收益；最新claude1.00145仍更強。
+
+主持人流程續接：下一階段改由另一subagent研究CEM serial SGS，避免繼續調SA溫度；本階段沒有追加實驗。

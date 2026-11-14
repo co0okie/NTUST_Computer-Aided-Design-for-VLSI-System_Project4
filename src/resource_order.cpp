@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdlib>
+#include <cmath>
 #include <fstream>
 #include <string>
 #include <limits>
@@ -314,9 +315,117 @@ bool beam_less(BeamState const &a, BeamState const &b) {
 }
 } // namespace
 
+namespace {
+bool metropolis_accept(double delta, double temperature, double uniform) {
+    return delta <= 0 || uniform < std::exp(-delta / temperature);
+}
+
+OrderSearchStats improve_resource_order_anneal(OpGraph const &g, HeuristicResult &best,
+                                               Clock const &clock, double deadline_elapsed) {
+    OrderSearchStats stats;
+    stats.initial_latency = stats.final_latency = best.latency;
+    if (g.n < 2 || best.latency <= best.lower_bound || clock.elapsed() >= deadline_elapsed)
+        return stats;
+    std::mt19937_64 rng(0x8cb92baa3f3d8dd7ULL);
+    auto state = lanes_from_steps(g, best.step);
+    Evaluation current, scratch;
+    if (!evaluate(g, state, current, best.latency)) return stats;
+    if (current.latency < best.latency) {
+        best.latency = current.latency;
+        best.step = current.step;
+    }
+    std::array<std::vector<Id>, OP_KINDS> by_kind;
+    for (Id u = 0; u < g.n; ++u) by_kind[g.kind[u]].push_back(u);
+    std::vector<Id> critical;
+    auto const rebuild_critical = [&]() {
+        critical.clear();
+        for (Id u = 0; u < g.n; ++u)
+            if (current.step[u] + current.tail[u] >= current.latency) critical.push_back(u);
+    };
+    rebuild_critical();
+    // Match the existing single-order candidate work budget. Eight reheating
+    // epochs avoid dependence on the speed of the machine within the wall cap.
+    constexpr std::uint64_t work_limit = 350'000'000;
+    constexpr std::uint64_t epoch_work = work_limit / 8;
+    auto const cost = static_cast<std::uint64_t>(g.n) + g.succ.item.size();
+    std::uint64_t work = 0, next_restart = epoch_work;
+    std::uint64_t uphill = 0, plateau = 0, downhill = 0, restarts = 0;
+    auto const energy = [&](Evaluation const &e) {
+        // The pressure term spans at most 0.2 cycles. A one-cycle rise always
+        // has positive energy, while equal-latency states can freely diffuse.
+        return static_cast<double>(e.latency) +
+               0.2 * static_cast<double>(e.pressure) / (4096.0 * g.n);
+    };
+    while (best.latency > best.lower_bound && work < work_limit &&
+           clock.elapsed() < deadline_elapsed) {
+        if (work >= next_restart) {
+            state = lanes_from_steps(g, best.step, &rng);
+            if (!evaluate(g, state, current, best.latency)) break;
+            rebuild_critical();
+            ++restarts;
+            next_restart += epoch_work;
+        }
+        auto u = critical.empty() || rng() % 4 == 0 ?
+                 static_cast<Id>(rng() % static_cast<std::uint64_t>(g.n)) :
+                 critical[rng() % critical.size()];
+        Move move;
+        if (rng() % 2 == 0) {
+            bool const forward = (rng() & 1U) != 0;
+            auto const v = forward ? state.next[u] : state.prev[u];
+            if (v < 0) { work += cost; continue; }
+            move = {u, v, !forward};
+        } else {
+            auto const &group = by_kind[g.kind[u]];
+            auto v = group[rng() % group.size()];
+            for (int trial = 0; trial < 6 && std::abs(current.step[v] - current.step[u]) > 4; ++trial)
+                v = group[rng() % group.size()];
+            move = {u, v, (rng() & 1U) != 0};
+        }
+        work += cost;
+        if (!useful(state, move)) continue;
+        ++stats.attempts;
+        auto const undo = apply(state, move);
+        if (!evaluate(g, state, scratch, best.latency + 1)) {
+            restore(state, undo);
+            continue;
+        }
+        ++stats.feasible;
+        auto const fraction = static_cast<double>(work % epoch_work) / epoch_work;
+        // Geometric cooling 0.4 -> 0.02 cycles per epoch: a +1-cycle
+        // move initially has about exp(-1/0.4)=8.2% acceptance probability.
+        auto const temperature = 0.4 * std::pow(0.02 / 0.4, fraction);
+        auto const uniform = static_cast<double>(rng() >> 11) * 0x1.0p-53;
+        if (!metropolis_accept(energy(scratch) - energy(current), temperature, uniform)) {
+            restore(state, undo);
+            continue;
+        }
+        if (scratch.latency > current.latency) ++uphill;
+        else if (scratch.latency < current.latency) ++downhill;
+        else ++plateau;
+        std::swap(current, scratch);
+        ++stats.accepted;
+        rebuild_critical();
+        if (current.latency < best.latency) {
+            best.latency = current.latency;
+            best.step = current.step;
+        }
+    }
+    stats.final_latency = best.latency;
+    if (auto const *path = std::getenv("MLRCS_ORDER_SA_LOG")) {
+        std::ofstream out(path, std::ios::app);
+        out << g.n << '\t' << stats.initial_latency << '\t' << stats.final_latency
+            << '\t' << uphill << '\t' << plateau << '\t' << downhill
+            << '\t' << restarts << '\t' << work << '\n';
+    }
+    return stats;
+}
+} // namespace
+
 OrderSearchStats improve_resource_order(OpGraph const &g, HeuristicResult &best,
                                          Clock const &clock, double deadline_elapsed) {
     auto const *method = std::getenv("MLRCS_ORDER_METHOD");
+    if (method && std::string(method) == "anneal")
+        return improve_resource_order_anneal(g, best, clock, deadline_elapsed);
     if (!method || std::string(method) != "beam")
         return improve_resource_order_single(g, best, clock, deadline_elapsed);
     OrderSearchStats stats;

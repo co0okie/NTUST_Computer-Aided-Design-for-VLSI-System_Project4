@@ -176,6 +176,23 @@ int main() {
     e.step = repair.step;
     e.latency = repair.latency;
     check_steps(g, e);
+    // Annealing acceptance really admits positive energy and rejects some too.
+    assert(metropolis_accept(-1.0, 0.4, 0.99));
+    assert(metropolis_accept(0.0, 0.4, 0.99));
+    assert(metropolis_accept(1.0, 0.4, 0.05));
+    assert(!metropolis_accept(1.0, 0.4, 0.10));
+    g = graph(12, {}, {2, 0, 0});
+    repair.step = {1, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 8};
+    repair.latency = 8;
+    repair.lower_bound = 6;
+    Clock anneal_clock;
+    setenv("MLRCS_ORDER_METHOD", "anneal", 1);
+    auto const anneal_stats = improve_resource_order(g, repair, anneal_clock, 0.5);
+    unsetenv("MLRCS_ORDER_METHOD");
+    assert(repair.latency == 6 && anneal_stats.accepted > 0);
+    e.step = repair.step;
+    e.latency = repair.latency;
+    check_steps(g, e);
     // Oversized resource capacities must allocate by operation count, not capacity.
     g = graph(3, {}, {INT_MAX, INT_MAX, INT_MAX});
     s = lanes_from_steps(g, {1, 1, 1});
