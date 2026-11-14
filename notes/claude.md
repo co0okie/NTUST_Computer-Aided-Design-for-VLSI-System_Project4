@@ -279,3 +279,9 @@ opus subagent；程式 b4c6427，評估列 69212d7（note=`stage7: ...`）。
 - big2 沒有處理（n > 5000 時 DFS 不啟動）。
 - **差異測資**：`benchmark/claude_gap3.blif` 又失效（`-h` 24＝`-e` 24）。目前已知有效的最小 case 是 `benchmark/hard/layered_s1076_n851.blif 8 8 6`
   （`-h` 48、`-e` 47 optimal，18 s）；另有 layered_s1006:14,9,8（49/48）、layered_s557:12,16,7（63/62，`-e` 48.9 s 貼近時限）。
+
+### 階段 7 收尾：差異測資 `benchmark/claude_gap4.blif`（8d96159，heuristic 凍結於 b4c6427）
+`python3 benchmark/hard/gen_hard.py layered seed=9914 layers=20 width=9 profile=uniform phased=1 fanmax=3 back=4 -o benchmark/claude_gap4.blif`
+180 ops（63/59/58），深度 20，限制 3,3,3：`-h` 26（LB 24，2.1 s，3 次相同）、`-e` 25 optimal（2.4 s）。輸出在 `notes/claude_gap4_{h,e}.txt`。
+搜尋：約 3.1 萬組 layered 候選、168 次 `-e`，只有這一個 hit；180 ops 以下所有 `-h`>LB 的候選 `-e` 都沒有更好（多半只是 LB 太弱）。gap3 已移除。
+未做：b4c6427 上完整的 `-e` 評估（預設 suite 與難測資）；big2；4 個 open layered case。
