@@ -58,9 +58,22 @@ Project 4 的評分方式還沒公布，以下參考 Project 2 的評分標準�
 
 在助教回覆之前，先假設隱藏測資的規模與 `benchmark/` 相當（最大約 1.5 萬個 operation）。即使如此，仍要考慮最壞情況的複雜度與記憶體，至少不能 crash 或逾時。
 
+## 研究重點：heuristic 優先
+
+`-e` 的結果不會比 `-h` 差，所以 heuristic 越好，兩種模式都受益。在助教說明 ILP 是否計分之前，研究以 `-h` 為主；ILP 只做讓 `-e` 能用、不出錯所需的改進，不要再花整個階段在 formulation 的消融實驗上。
+
+benchmark 對 heuristic 太容易：測資幾乎都是資源主導，claude@55567d1 的 `-h` 在 76 個 case 中，已經有 72 個等於 lower bound（`latency / best_known` 的幾何平均是 1.00001），只剩 big2 有 0.4% 以內的差距。所以在 benchmark 上擠最後一點已經沒有意義，重點改為：
+
+1. **較難的自製測資**：生成深度與資源限制互相拉扯的電路，例如 `x2:1,1,1`（lower bound 14，最佳解 16），用來比較不同 heuristic 在隱藏測資中困難情況下的表現。
+   - 生成器與測資放在 `benchmark/`（例如 `benchmark/hard/`），附上生成方式，讓三條路線共用；
+   - 最佳解或最強的 lower bound 可以用 ILP 離線求出（不受 60 秒限制），記錄在 `shared/best.tsv`；
+   - 這組測資的 `latency / best_known` 幾何平均，作為 heuristic 的主要指標。
+2. **big2 剩下的差距**：一邊壓低 heuristic，一邊拉高 lower bound。
+3. **穩健性**：超大或結構特殊的輸入（很深、很寬、fanout 很大），都不能逾時或 crash。
+
 ## 研究指標
 
-指標以 `tools/eval.py` 的預設 suite 為準：19 個電路 × 4 組資源限制（`--list`），`big4` 與 `big3` 內容完全相同，所以不列入。
+指標以 `tools/eval.py` 的預設 suite，加上上述的自製難測資為準：19 個電路 × 4 組資源限制（`--list`），`big4` 與 `big3` 內容完全相同，所以不列入。
 
 - **best known**：每個 case 目前已知的最佳 latency 與最強的 lower bound，記錄在 `shared/best.tsv`（見下方），三條路線共同維護。
 - `-h`：所有 case 的 `latency / best_known` 取幾何平均，越接近 1 越好。
