@@ -344,6 +344,28 @@ HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double 
     r.head.resize(g.n);
     for (std::int32_t i = 0; i < g.n; ++i) r.head[i] = mirror_tail[g.n - 1 - i] + 1;
     r.lower_bound = jackson_bound(g, r.head, r.tail);
+    if (g.n > 0) {
+        // Idle of the most loaded kind at both ends (in disjoint step windows when the latency
+        // is at least the bound so far)
+        int b = 0;
+        std::int64_t load = -1;
+        for (int k = 0; k < OP_KINDS; ++k) {
+            if (g.count[k] == 0) continue;
+            auto const l = (static_cast<std::int64_t>(g.count[k]) + g.limit[k] - 1) / g.limit[k];
+            if (l > load) load = l, b = k;
+        }
+        std::vector<std::int32_t> mirror_head(g.n);
+        for (std::int32_t i = 0; i < g.n; ++i) mirror_head[g.n - 1 - i] = r.tail[i] + 1;
+        constexpr std::int32_t idle_steps = 64;
+        constexpr std::int64_t idle_work = 20'000'000;
+        auto const start = start_idle_bound(g, mirror_closure, r.head, b, idle_steps, idle_work);
+        auto const end = start_idle_bound(mirror, closure, mirror_head, b, idle_steps, idle_work);
+        if (start.steps + end.steps <= r.lower_bound) {
+            auto const c = static_cast<std::int64_t>(g.limit[b]);
+            auto const bound = (g.count[b] + start.slots + end.slots + c - 1) / c;
+            r.lower_bound = std::max<std::int32_t>(r.lower_bound, static_cast<std::int32_t>(bound));
+        }
+    }
 
     std::vector<std::int64_t> key(g.n);
     auto const consider = [&](std::vector<std::int32_t> step) {
@@ -970,7 +992,12 @@ void ramp_search(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
         auto const big = static_cast<std::int64_t>(g.n) + r.latency + 2;
         for (std::int32_t i = 0; i < g.n; ++i)
             key[i] = static_cast<std::int64_t>(r.latency + 1 - r.step[i]) * big + r.tail[i];
+        // Vary the choice: 16/32/64 candidate bundles, noise 0.5/1/2
+        constexpr std::int32_t candidates[] = {16, 32, 64};
+        constexpr double noises[] = {0.5, 1, 2};
         o.seed = seed + trial;
+        o.candidates = candidates[trial % 3];
+        o.noise = noises[(trial / 3) % 3];
         auto s = ramp_schedule(g, data, key, o, work);
         work += 6 * pass_work(g);
         auto best = s;
