@@ -1,0 +1,23 @@
+{
+  "kind": "theory validation; not eval.py, not mlrcs -h, not hard-suite metrics",
+  "random_seed": 661704,
+  "cases": 100,
+  "ops_range": [
+    3,
+    10
+  ],
+  "resources": "each AND/OR/NOT capacity independently 1 or 2",
+  "equal_optima": 100,
+  "counterexamples": [],
+  "checker_ok": 200,
+  "fixed_priority_toy_checker_ok": 2,
+  "fixed_priority_toy": {
+    "non_delay_optimum": 2,
+    "fixed_id_greedy": 3
+  },
+  "elapsed_seconds": 5.965,
+  "idle_dp_states": 4352,
+  "non_delay_dp_states": 841,
+  "script_sha256": "a4eff2ec65ac3d665b0fef8388eb26a0a68df8703ccb9e4d83575ebc4544e842",
+  "artifacts": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/shared/tmp/codex/non-delay-validation"
+}

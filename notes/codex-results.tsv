@@ -500,3 +500,4 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-14 02:52	6e2c6ab	layered_s1008_n616:8,8,5	h	35	33			10.14	OK	hard-order-stage5-pilot source_sha256=fb505327c533840d3ae03471cf6958f898c27de022371fcce25b105ad9de9e67
 2026-11-14 02:52	6e2c6ab	chains_s575_n2879:12,15,6	h	113	110			10.50	OK	hard-order-stage5-pilot source_sha256=fb505327c533840d3ae03471cf6958f898c27de022371fcce25b105ad9de9e67
 2026-11-14 02:52	6e2c6ab	layered_s1076_n851:8,8,6	h	48	45			10.15	OK	hard-order-stage5-pilot source_sha256=fb505327c533840d3ae03471cf6958f898c27de022371fcce25b105ad9de9e67
+2026-11-14 02:56	5cea0e6+theory	theory_non_delay_random100	theory-dp				validation-only	5.965	OK	theory-non-delay not-eval.py not-mlrcs-hard-metric; 100/100_equal; 200_checker_outputs+2_toy_OK; idle_states4352 nondelay_states841; script_sha256=a4eff2ec65ac3d665b0fef8388eb26a0a68df8703ccb9e4d83575ebc4544e842

@@ -252,3 +252,9 @@ Source新增priority_cem.cpp/.hpp，`MLRCS_ORDER_METHOD=cem`才啟用，single�
 同五case全部原checker與保留輸出重checker OK，seed→final31→31/72→72/35→35/113→113/48→48，完整64generations/2049feasible decode、0strict改善。CPU4–7總wall50.88s/max10.50s/fresh Release build16.3s；5case geo仍1.02136624985，沒有全50新成績。詳見hard-order-stage5.md及同名pilot artifacts，source hashfb505327c533840d3ae03471cf6958f898c27de022371fcce25b105ad9de9e67。
 
 formal5列已入codex-results.tsv，source current與snapshot逐檔一致；shared best audit無strict latency/LB改善，Q16已通知。此負結果不支持「只縮小CEM noise就能跨過差1barrier」；依事先準則不擴大全50，也不再提出額外noise變體。本階段未完成全suite、新差異測資或報告，未宣稱贏過claude。接下來等待主導者按剩餘額度作研究決策，先保持乾淨commit。
+
+### 最後小階段：non-delay dominance審核（theory，非hard評估）
+
+獨立確認主持人的左移證明成立：取最優makespan中sum starts最小者；若有ready op未選、同kind有空位，提前該op一個slot不壞precedence/resource、不增makespan但降低sum starts，矛盾。因此本題存在non-delay最優解，不應再開explicit-waiting方向；固定priority greedy仍可能做錯ready選擇（已保存3op latency3 vs2的反例，兩者均non-delay，不是mlrcs h/e反例）。完整條件與證明見non-delay-dominance.md。
+
+100個固定random DAG（3–10ops，capacity1/2），獨立subset DP比較允許partial idle與強制每kind填滿，100/100最佳latency相同；200份最佳schedule＋2份toy schedule全部check.py通過，CPU4–7共5.965秒。明細/summary/script已保存；codex-results只記mode=theory-dp摘要，不能當成hard geo/正式eval。questions Q17更新，best無strict改善。此階段完成後停止，不新開實作；此前新有效h/e差異測資、報告與完整76suite仍未完成。
