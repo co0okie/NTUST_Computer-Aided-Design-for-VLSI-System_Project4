@@ -1,6 +1,7 @@
 #include "blif.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
@@ -43,6 +44,8 @@ bool directive_is_unsupported(std::string const &d) {
 
 // Pass 1: tokens to raw records. Handles '#' comments and '\' line continuation.
 Result<RawBlif> parse(std::string const &path) {
+    std::error_code ec;
+    if (std::filesystem::is_directory(path, ec)) return err(path + " is a directory, not a BLIF file");
     std::ifstream file(path);
     if (!file) return err("cannot open " + path);
 

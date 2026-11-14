@@ -1,4 +1,5 @@
 #include <cerrno>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <algorithm>
@@ -92,7 +93,7 @@ Result<Options> parse_args(int argc, char **argv) {
     char const *const names[OP_KINDS] = {"AND constraint", "OR constraint", "NOT constraint"};
     for (int k = 0; k < OP_KINDS; ++k) {
         TRY(auto const v, parse_int(argv[3 + k], names[k]));
-        if (v < 0 || v > 1'000'000'000) return err(std::string("bad ") + names[k]);
+        if (v < 0 || v > 2'147'483'647) return err(std::string("bad ") + names[k]);
         o.resources.limit[k] = static_cast<std::int32_t>(v);
     }
     for (int i = 6; i < argc; ++i) {
@@ -106,7 +107,8 @@ Result<Options> parse_args(int argc, char **argv) {
         if (flag == "--time") {
             char *end = nullptr;
             o.time = std::strtod(value, &end);
-            if (*end != '\0' || !(o.time > 0)) return err("bad value for --time");
+            if (end == value || *end != '\0' || !std::isfinite(o.time) || !(o.time > 0))
+                return err("bad value for --time");
         } else if (flag == "--heffort") {
             char *end = nullptr;
             o.heffort = std::strtod(value, &end);
@@ -143,7 +145,13 @@ Result<Unit> run(Options const &o, Clock &clock) {
 
     TRY(auto const netlist, read_blif(o.blif));
     TRY_VOID(check_resources(netlist, o.resources));
-    auto const graph = make_op_graph(netlist, o.resources);
+    // A limit above the number of operations of its kind never binds; clamping it (to at least
+    // 1, which also covers a 0 limit for a kind that has no operations) keeps every later
+    // computation (ceil(N/c), c * steps, ...) far from overflow without changing any result.
+    Resources resources = o.resources;
+    for (int k = 0; k < OP_KINDS; ++k)
+        resources.limit[k] = std::max(1, std::min(resources.limit[k], netlist.op_count[k]));
+    auto const graph = make_op_graph(netlist, resources);
     // The same deterministic heuristic for -h and -e (so -e, which only improves on it, is never
     // worse). Wall-clock guards only fire on a machine several times slower than ours.
     auto found = heuristic_schedule(graph, clock, 20.0);
@@ -152,7 +160,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
         o.heffort * static_cast<double>(std::min<std::int64_t>(200'000'000, std::int64_t{300'000} * graph.n)));
     improve_schedule(graph, found, budget, clock, std::min(30.0, o.time - 20.0), hwork);
     auto const heuristic = to_schedule(netlist, graph, found.step);
-    TRY_VOID(validate(netlist, o.resources, heuristic));
+    TRY_VOID(validate(netlist, resources, heuristic));
 
     if (o.mode == Mode::Heuristic) {
         print_schedule(std::cout, netlist, heuristic, "Heuristic Scheduling Result");
@@ -194,7 +202,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
                                                                  : ExactStatus::Bound;
     }
     auto const schedule = to_schedule(netlist, graph, exact.step);
-    auto const valid = validate(netlist, o.resources, schedule);
+    auto const valid = validate(netlist, resources, schedule);
     // Whatever happened in the solver, the heuristic schedule is always a legal answer
     auto const &final_schedule = valid ? schedule : heuristic;
     print_schedule(std::cout, netlist, final_schedule, "ILP-based Scheduling Result");
