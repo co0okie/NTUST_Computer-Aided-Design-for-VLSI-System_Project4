@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <functional>
+#include <iostream>
 #include <queue>
 #include <random>
 #include <utility>
@@ -9,6 +11,13 @@
 #include "bounds.hpp"
 
 namespace {
+
+// Work units charged for one list-scheduling pass: n, more on graphs with over 4 edges per op
+// (calibrated on a 3000-op graph with 50 fan-ins per op)
+std::int64_t pass_work(OpGraph const &g) {
+    auto const n = static_cast<std::int64_t>(g.n);
+    return std::max(n, n / 2 + static_cast<std::int64_t>(g.succ.item.size()) / 8);
+}
 
 std::int32_t latency_of(std::vector<std::int32_t> const &step) {
     std::int32_t latency = 0;
@@ -145,7 +154,7 @@ std::vector<std::int32_t> unlock_schedule(OpGraph const &g, Closure const &closu
     return step;
 }
 
-HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double time_budget) {
+HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double deadline_elapsed) {
     HeuristicResult r;
     auto const mirror = reversed(g);
     auto const closure = descendants(g);
@@ -203,7 +212,7 @@ HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double 
     // current step (latest first), then the original problem likewise, and so on.
     auto current = r.step;
     for (int stale = 0; stale < 4 && r.latency > r.lower_bound;) {
-        if (clock.elapsed() > time_budget) break;
+        if (clock.elapsed() > deadline_elapsed) break;
         auto const big = static_cast<std::int64_t>(g.n) + r.latency + 2;
         for (std::int32_t i = 0; i < g.n; ++i)
             key[g.n - 1 - i] = static_cast<std::int64_t>(current[i]) * big + mirror_tail[g.n - 1 - i];
@@ -218,7 +227,8 @@ HeuristicResult heuristic_schedule(OpGraph const &g, Clock const &clock, double 
     return r;
 }
 
-void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
+void restart_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
+                      std::int64_t &work, std::uint64_t seed, Clock const &clock,
                       double deadline_elapsed) {
     if (g.n == 0 || r.latency <= r.lower_bound || clock.elapsed() >= deadline_elapsed) return;
     auto const mirror = reversed(g);
@@ -245,8 +255,11 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
 
     constexpr std::int64_t W = 1024;
     constexpr double amps[] = {0.5, 1, 2, 4};
-    std::mt19937_64 rng(0x9e3779b97f4a7c15ULL);
+    std::mt19937_64 rng(seed);
     std::vector<std::int64_t> key(g.n), mkey(g.n);
+    // Work units: about 50 ns each on the development machine (see improve_deterministic)
+    auto const list_work = 2 * pass_work(g);
+    auto const unlock_work = list_work * (2 + closure.words / 4);
     std::vector<std::int32_t> cur, back;
 
     auto const consider = [&](std::vector<std::int32_t> const &step) {
@@ -258,7 +271,8 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
         }
     };
 
-    for (std::uint64_t iter = 0; r.latency > r.lower_bound && clock.elapsed() < deadline_elapsed;
+    for (std::uint64_t iter = 0; r.latency > r.lower_bound && work < work_budget &&
+                                 clock.elapsed() < deadline_elapsed;
          ++iter) {
         auto const amp = amps[rng() % 4];
         auto const noise_range = static_cast<std::uint64_t>(amp * W);
@@ -277,6 +291,7 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
             mkey[i] = base + noise;
         }
         bool const use_closure = !closure.empty();
+        work += strategy <= 1 || !use_closure ? list_work : unlock_work;
         if (strategy == 0 || (strategy >= 2 && !use_closure)) {
             cur = list_schedule(g, key);
         } else if (strategy == 1) {
@@ -291,6 +306,7 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, Clock const &clock,
         auto const rounds = 2 + static_cast<int>(rng() % 3);
         for (int round = 0; round < rounds && r.latency > r.lower_bound; ++round) {
             if (clock.elapsed() >= deadline_elapsed) break;
+            work += 2 * list_work;
             auto const big = static_cast<std::int64_t>(g.n) + latency_of(cur) + 2;
             for (std::int32_t i = 0; i < g.n; ++i)
                 mkey[g.n - 1 - i] = static_cast<std::int64_t>(cur[i]) * big + mirror_tail[g.n - 1 - i];
@@ -361,4 +377,230 @@ void guided_schedule(OpGraph const &g, HeuristicResult &r, std::vector<std::int6
         if (latency_of(current) < r.latency) r.latency = latency_of(current), r.step = current;
         stale = r.latency < before ? 0 : stale + 1;
     }
+}
+
+namespace {
+
+// (latency, excess) with excess = sum over ops of max(0, step + tail - target): 0 iff every op
+// leaves room for its resource-aware tail before `target`. Used to pick among equal latencies.
+std::pair<std::int32_t, std::int64_t> schedule_measure(std::vector<std::int32_t> const &step,
+                                                       std::vector<std::int32_t> const &tail,
+                                                       std::int32_t target) {
+    std::int32_t latency = 0;
+    std::int64_t excess = 0;
+    for (std::size_t i = 0; i < step.size(); ++i) {
+        latency = std::max(latency, step[i]);
+        excess += std::max(0, step[i] + tail[i] - target);
+    }
+    return {latency, excess};
+}
+
+// Depth-first search state for target_dfs.
+struct TargetDfs {
+    explicit TargetDfs(OpGraph const &graph) : g(graph) {}
+
+    OpGraph const &g;
+    std::vector<std::int32_t> lst;  // latest step: target - tail
+    std::vector<std::int64_t> rank; // branching order inside a kind (smaller first)
+    std::int64_t node_limit = 0;
+    std::int64_t nodes = 0;
+    std::vector<std::int32_t> step, est; // step 0: not scheduled yet
+    std::vector<std::vector<std::pair<std::int32_t, std::int32_t>>> buckets; // by est: (lst, op)
+    std::vector<std::pair<std::int32_t, std::int32_t>> heap;
+    std::int32_t remaining = 0;
+
+    // Steps 1..t are decided. Earliest steps of the open ops along precedence, then each kind
+    // on its own: unit jobs with release est and deadline lst on limit[k] machines, which EDF
+    // decides exactly. False: no completion meets the target.
+    bool propagate(std::int32_t t) {
+        for (std::int32_t i = 0; i < g.n; ++i) {
+            if (step[i] != 0) continue;
+            std::int32_t e = t + 1;
+            for (auto const p : g.pred.row(i)) e = std::max(e, step[p] != 0 ? step[p] + 1 : est[p] + 1);
+            est[i] = e;
+            if (e > lst[i]) return false;
+        }
+        auto const cmp = std::greater<std::pair<std::int32_t, std::int32_t>>();
+        for (int k = 0; k < OP_KINDS; ++k) {
+            std::int32_t count = 0;
+            for (std::int32_t i = 0; i < g.n; ++i) {
+                if (step[i] != 0 || g.kind[i] != k) continue;
+                auto const b = static_cast<std::size_t>(est[i] - t - 1);
+                if (b >= buckets.size()) buckets.resize(b + 1);
+                buckets[b].push_back({lst[i], i});
+                ++count;
+            }
+            heap.clear();
+            bool ok = true;
+            for (std::size_t s = 0; ok && (count > 0 || !heap.empty()); ++s) {
+                if (s < buckets.size()) {
+                    for (auto const &d : buckets[s]) {
+                        heap.push_back(d);
+                        std::push_heap(heap.begin(), heap.end(), cmp);
+                        --count;
+                    }
+                }
+                for (std::int32_t u = 0; u < g.limit[k] && !heap.empty(); ++u) {
+                    std::pop_heap(heap.begin(), heap.end(), cmp);
+                    if (heap.back().first < t + 1 + static_cast<std::int32_t>(s)) ok = false;
+                    heap.pop_back();
+                }
+            }
+            for (auto &b : buckets) b.clear();
+            if (!ok) return false;
+        }
+        return true;
+    }
+
+    using Lists = std::array<std::vector<std::int32_t>, OP_KINDS>;
+
+    bool search_step(std::int32_t t) {
+        if (remaining == 0) return true;
+        Lists list; // ready ops per kind, in branching order
+        for (std::int32_t i = 0; i < g.n; ++i)
+            if (step[i] == 0 && est[i] <= t) list[g.kind[i]].push_back(i);
+        for (auto &l : list)
+            std::sort(l.begin(), l.end(), [&](std::int32_t a, std::int32_t b) {
+                return rank[a] != rank[b] ? rank[a] < rank[b] : a < b;
+            });
+        return choose(t, list, 0, 0, g.limit[0]);
+    }
+
+    // Decide the ready ops c[k][pos..] of kind k (then the next kinds) for step t with
+    // `capacity` units of kind k left. Only full selections min(ready, limit) are tried: for unit
+    // times some list schedule is optimal, and list schedules never idle a unit next to a ready op.
+    bool choose(std::int32_t t, Lists const &c, int k, std::size_t pos, std::int32_t capacity) {
+        if (k == OP_KINDS) {
+            if (++nodes > node_limit) return false;
+            return propagate(t) && search_step(t + 1);
+        }
+        auto const &list = c[k];
+        if (capacity == 0 || pos == list.size()) {
+            for (auto p = pos; p < list.size(); ++p)
+                if (lst[list[p]] <= t) return false; // postponed, but due now
+            return choose(t, c, k + 1, 0, k + 1 < OP_KINDS ? g.limit[k + 1] : 0);
+        }
+        auto const x = list[pos];
+        step[x] = t;
+        --remaining;
+        if (choose(t, c, k, pos + 1, capacity - 1)) return true;
+        step[x] = 0;
+        ++remaining;
+        if (nodes > node_limit) return false;
+        if (lst[x] > t && list.size() - pos - 1 >= static_cast<std::size_t>(capacity))
+            return choose(t, c, k, pos + 1, capacity);
+        return false;
+    }
+};
+
+} // namespace
+
+DfsResult target_dfs(OpGraph const &g, std::vector<std::int32_t> const &tail,
+                     std::vector<std::int32_t> const &incumbent, std::int32_t target,
+                     std::int64_t node_limit) {
+    TargetDfs s(g);
+    s.lst.resize(g.n);
+    s.rank.resize(g.n);
+    s.node_limit = node_limit;
+    for (std::int32_t i = 0; i < g.n; ++i) {
+        s.lst[i] = target - tail[i];
+        // Earliest deadline first; ties: earlier in the incumbent schedule
+        s.rank[i] = static_cast<std::int64_t>(s.lst[i]) * 262144 + incumbent[i];
+    }
+    s.step.assign(g.n, 0);
+    s.est.assign(g.n, 1);
+    s.remaining = g.n;
+    DfsResult r;
+    bool const found = s.propagate(0) && s.search_step(1);
+    r.nodes = std::min(s.nodes, node_limit);
+    if (found) r.step = std::move(s.step);
+    else r.infeasible = s.nodes <= node_limit;
+    return r;
+}
+
+void local_search(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
+                  std::int64_t &work, std::uint64_t seed, Clock const &clock,
+                  double deadline_elapsed) {
+    if (g.n == 0 || r.latency <= r.lower_bound) return;
+    auto const mirror = reversed(g);
+    std::vector<std::int32_t> mtail(g.n);
+    for (std::int32_t i = 0; i < g.n; ++i) mtail[g.n - 1 - i] = r.head[i] - 1;
+    std::mt19937_64 rng(seed);
+    constexpr std::int64_t W = 1 << 16; // one step in key units
+    constexpr double amps[] = {0.25, 0.5, 1, 2};
+    auto const measure = [&](std::vector<std::int32_t> const &s) {
+        return schedule_measure(s, r.tail, r.latency - 1);
+    };
+    auto cur = r.step;
+    auto cur_latency = r.latency;
+    std::vector<std::int64_t> key(g.n);
+    while (work < work_budget && r.latency > r.lower_bound && clock.elapsed() < deadline_elapsed) {
+        // Perturb the current schedule's step order, schedule forward or on the mirror
+        auto const range = static_cast<std::uint64_t>(amps[rng() % 4] * W) + 1;
+        auto const lc = latency_of(cur);
+        std::vector<std::int32_t> s;
+        if (rng() % 2 == 0) {
+            for (std::int32_t i = 0; i < g.n; ++i)
+                key[i] = static_cast<std::int64_t>(lc + 1 - cur[i]) * W +
+                         static_cast<std::int64_t>(rng() % range) + r.tail[i] * 16;
+            s = list_schedule(g, key);
+        } else {
+            for (std::int32_t i = 0; i < g.n; ++i)
+                key[g.n - 1 - i] = static_cast<std::int64_t>(cur[i]) * W +
+                                   static_cast<std::int64_t>(rng() % range) + mtail[g.n - 1 - i] * 16;
+            s = mirror_steps(list_schedule(mirror, key));
+        }
+        work += 5 * pass_work(g);
+        // Two forward-backward rounds; keep the best of the five schedules by (latency, excess)
+        auto best = s;
+        auto best_m = measure(s);
+        for (int round = 0; round < 2; ++round) {
+            for (std::int32_t i = 0; i < g.n; ++i)
+                key[g.n - 1 - i] = static_cast<std::int64_t>(s[i]) * W + mtail[g.n - 1 - i];
+            auto const b = mirror_steps(list_schedule(mirror, key));
+            auto const lb = latency_of(b);
+            for (std::int32_t i = 0; i < g.n; ++i)
+                key[i] = static_cast<std::int64_t>(lb + 1 - b[i]) * W + r.tail[i];
+            s = list_schedule(g, key);
+            auto const mb = measure(b);
+            if (mb < best_m) best_m = mb, best = b;
+            auto const ms = measure(s);
+            if (ms < best_m) best_m = ms, best = s;
+        }
+        if (best_m.first < r.latency) {
+            r.latency = best_m.first;
+            r.step = best;
+        }
+        // Walk: accept any move that keeps the latency (plateaus are where these cases sit)
+        if (best_m.first <= cur_latency) {
+            cur = std::move(best);
+            cur_latency = best_m.first;
+        }
+    }
+}
+
+void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
+                      Clock const &clock, double deadline_elapsed, std::int64_t &work) {
+    if (g.n == 0 || r.latency <= r.lower_bound) return;
+    // Phase 1 (20%): depth-first search for latency - 1, repeated while it succeeds. Only for
+    // n <= 5000: the recursion depth is about n + latency. A search node costs about n / 4 units.
+    constexpr double dfs_share = 0.2, restart_share = 0.3;
+    auto const dfs_budget = static_cast<std::int64_t>(static_cast<double>(work_budget) * dfs_share);
+    if (g.n <= 5000) {
+        auto const nodes = dfs_budget * 4 / pass_work(g);
+        std::int64_t used = 0;
+        while (r.latency > r.lower_bound && used < nodes && clock.elapsed() < deadline_elapsed) {
+            auto const d = target_dfs(g, r.tail, r.step, r.latency - 1, nodes - used);
+            used += d.nodes;
+            if (d.infeasible) r.lower_bound = r.latency; // exhausted: latency - 1 is impossible
+            if (d.step.empty()) break;
+            r.step = d.step;
+            r.latency = latency_of(d.step);
+        }
+    }
+    work += dfs_budget;
+    // Phase 2 (30%): randomized restarts; phase 3 (the rest): local search from the best
+    auto const restart_budget = work + static_cast<std::int64_t>(static_cast<double>(work_budget) * restart_share);
+    restart_schedule(g, r, restart_budget, work, 0x9e3779b97f4a7c15ULL, clock, deadline_elapsed);
+    local_search(g, r, work_budget, work, 0x5eed1234abcdULL, clock, deadline_elapsed);
 }

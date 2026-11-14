@@ -31,6 +31,10 @@ struct IlpOptions {
     int threads = 0;         // Gurobi Threads parameter; 0 = Gurobi's default
     EndsOptions ends;
     std::int64_t max_vars = 400'000; // do not build a model larger than this
+    // ... nor one with more (estimated) nonzeros: Gurobi's memory grows with them (dense fan-in
+    // stress case, 3000 ops x 50 fan-ins: 379k variables, 37.8M nonzeros, 1.8 GB peak with 2
+    // threads, 2.7 GB with Gurobi's default threads; the proven aoi cases need at most 1M)
+    std::int64_t max_nonzeros = 16'000'000;
 };
 
 // How the reported schedule was obtained
@@ -38,7 +42,7 @@ enum class ExactStatus {
     Optimal,    // proven optimal by the ILP (found or matched a bound)
     Bound,      // the heuristic already meets the combinatorial lower bound; no ILP needed
     TimeLimit,  // ran out of time; best schedule found so far
-    TooLarge,   // model above max_vars; best schedule found so far
+    TooLarge,   // model above max_vars / max_nonzeros; best schedule found so far
 };
 
 char const *exact_status_name(ExactStatus s);
@@ -49,6 +53,7 @@ struct ExactResult {
     ExactStatus status = ExactStatus::Optimal;
     std::int32_t lower_bound = 0;
     std::int64_t num_vars = 0; // variables of the last ILP built
+    std::int64_t num_nonzeros = 0; // estimated constraint nonzeros of the last ILP built
     std::int32_t solves = 0;   // Gurobi runs
     std::int32_t ends_bound = 0; // lower bound from the end relaxations (0: not run)
     std::string note;          // solver trouble that was survived, for --stats

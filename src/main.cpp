@@ -23,7 +23,8 @@ constexpr char const *USAGE =
     "  -e               exact (ILP, solved with gurobi_cl)\n"
     "options:\n"
     "  --time SECONDS   wall-clock budget for the whole run (default 55)\n"
-    "  --htime SECONDS  -h: time spent on randomized improvement (default 10)\n"
+    "  --heffort F      scale the heuristic's deterministic work budget (default 1; 0: none;\n"
+    "                   the budget is min(2e8, 3e5 * ops) units, about 10 s at most)\n"
     "  --threads N      Gurobi threads (default: Gurobi's choice)\n"
     "  --keep DIR       keep the ILP model, MIP start, solution and Gurobi log in DIR\n"
     "  --stats          print one line of statistics to stderr\n"
@@ -40,7 +41,7 @@ struct Options {
     std::string blif;
     Resources resources;
     double time = 55;
-    double htime = 10;
+    double heffort = 1;
     int threads = 0;
     std::string keep_dir;
     bool stats = false;
@@ -106,10 +107,11 @@ Result<Options> parse_args(int argc, char **argv) {
             char *end = nullptr;
             o.time = std::strtod(value, &end);
             if (*end != '\0' || !(o.time > 0)) return err("bad value for --time");
-        } else if (flag == "--htime") {
+        } else if (flag == "--heffort") {
             char *end = nullptr;
-            o.htime = std::strtod(value, &end);
-            if (*end != '\0' || !(o.htime >= 0)) return err("bad value for --htime");
+            o.heffort = std::strtod(value, &end);
+            if (*end != '\0' || !(o.heffort >= 0) || o.heffort > 1000)
+                return err("bad value for --heffort");
         } else if (flag == "--threads") {
             TRY(auto const v, parse_int(value, "--threads"));
             if (v < 0) return err("bad value for --threads");
@@ -142,9 +144,13 @@ Result<Unit> run(Options const &o, Clock &clock) {
     TRY(auto const netlist, read_blif(o.blif));
     TRY_VOID(check_resources(netlist, o.resources));
     auto const graph = make_op_graph(netlist, o.resources);
-    auto found = heuristic_schedule(graph, clock, o.mode == Mode::Heuristic ? 5.0 : 3.0);
-    improve_schedule(graph, found, clock,
-                     o.mode == Mode::Heuristic ? std::min(o.htime, o.time - 5.0) : 3.0);
+    // The same deterministic heuristic for -h and -e (so -e, which only improves on it, is never
+    // worse). Wall-clock guards only fire on a machine several times slower than ours.
+    auto found = heuristic_schedule(graph, clock, 20.0);
+    std::int64_t hwork = 0;
+    auto const budget = static_cast<std::int64_t>(
+        o.heffort * static_cast<double>(std::min<std::int64_t>(200'000'000, std::int64_t{300'000} * graph.n)));
+    improve_schedule(graph, found, budget, clock, std::min(30.0, o.time - 20.0), hwork);
     auto const heuristic = to_schedule(netlist, graph, found.step);
     TRY_VOID(validate(netlist, o.resources, heuristic));
 
@@ -159,7 +165,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
                                  v += std::max(0, found.latency - 1 - found.tail[i] - found.head[i] + 1);
                              return v;
                          }()
-                      << " ops=" << netlist.num_ops() << " time=" << clock.elapsed() << '\n';
+                      << " work=" << hwork << " ops=" << netlist.num_ops() << " time=" << clock.elapsed() << '\n';
         return Unit{};
     }
 
@@ -175,7 +181,9 @@ Result<Unit> run(Options const &o, Clock &clock) {
         more.step = exact.step;
         more.latency = exact.latency;
         more.lower_bound = exact.lower_bound; // stop as soon as the (maybe raised) bound is met
-        improve_schedule(graph, more, clock, o.time - 3.0);
+        std::int64_t more_work = 0;
+        restart_schedule(graph, more, std::int64_t{1} << 62, more_work, 0x2545f4914f6cdd1dULL, clock,
+                         o.time - 3.0);
         if (more.latency < exact.latency) {
             exact.step = more.step;
             exact.latency = more.latency;
@@ -194,7 +202,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
         std::cerr << "mlrcs-stats mode=e latency=" << final_schedule.latency
                   << " heuristic=" << heuristic.latency << " lower_bound=" << exact.lower_bound
                   << " status=" << (valid ? exact_status_name(exact.status) : "invalid")
-                  << " ends_lb=" << exact.ends_bound << " vars=" << exact.num_vars << " solves=" << exact.solves
+                  << " ends_lb=" << exact.ends_bound << " vars=" << exact.num_vars << " nnz=" << exact.num_nonzeros << " solves=" << exact.solves
                   << " note=" << (exact.note.empty() ? "-" : exact.note)
                   << " ops=" << netlist.num_ops() << " time=" << clock.elapsed() << '\n';
     return Unit{};

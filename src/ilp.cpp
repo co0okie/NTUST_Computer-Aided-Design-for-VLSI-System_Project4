@@ -35,6 +35,7 @@ struct StepModel {
     std::int32_t horizon = 0;
     std::vector<std::int32_t> early, late;
     std::int64_t num_vars = 0;
+    std::int64_t num_nonzeros = 0; // estimate: monotone + precedence rows (2 each) + resource terms
     bool trivially_infeasible = false;
 };
 
@@ -46,7 +47,9 @@ StepModel make_step_model(OpGraph const &g, HeuristicResult const &h, std::int32
     for (std::int32_t i = 0; i < g.n; ++i) {
         m.late[i] = horizon - h.tail[i];
         if (m.late[i] < m.early[i]) m.trivially_infeasible = true;
-        m.num_vars += std::max(0, m.late[i] - m.early[i]);
+        auto const w = std::max(0, m.late[i] - m.early[i]);
+        m.num_vars += w;
+        m.num_nonzeros += static_cast<std::int64_t>(w) * (2 * static_cast<std::int64_t>(g.pred.row(i).size()) + 4);
     }
     return m;
 }
@@ -469,7 +472,8 @@ ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
             break;
         }
         result.num_vars = model.num_vars;
-        if (model.num_vars > options.max_vars) {
+        result.num_nonzeros = model.num_nonzeros;
+        if (model.num_vars > options.max_vars || model.num_nonzeros > options.max_nonzeros) {
             ends_relaxation(g, heuristic, dir, options, clock, result);
             if (result.latency <= result.lower_bound) break;
             result.status = ExactStatus::TooLarge;
