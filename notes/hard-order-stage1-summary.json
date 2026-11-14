@@ -1,0 +1,29 @@
+{
+  "source_commit": "4f1f4c9",
+  "source_sha256": "493e06a76aed5d2d7ad5de3b2ec3ebb044c92a2e10be2145144fb1ccfd42ab16",
+  "reference_sha256": "1028969b53871ea3bfc94ae0286bf53c2a0f236140ad13d22434398be3b6d6e7",
+  "cases": 50,
+  "checker_ok_at_original_run": 50,
+  "original_outputs_retained": false,
+  "original_outputs_rechecked": false,
+  "data_integrity_checks": "PASS: case sets, source hashes, frozen reference, final latency telemetry",
+  "geometric_mean": 1.0044654162376425,
+  "seed_geometric_mean": 1.0044654162376425,
+  "equal_frozen_best": 37,
+  "same_run_seed_improvements": 0,
+  "same_run_seed_regressions": 0,
+  "versus_claude_baseline": {
+    "tie": 50
+  },
+  "total_seconds": 420.74,
+  "max_seconds": 12.68,
+  "build_seconds": 14.5,
+  "cpu": "4-7",
+  "reason_counts": {
+    "bound": 15,
+    "search": 35
+  },
+  "attempts": 15625255,
+  "accepted": 131158,
+  "publication_comparison": "1.0044654 is numerically below published 1.00459, but exactly ties same-machine claude baseline on all 50 cases; no causal gain from resource-order search."
+}

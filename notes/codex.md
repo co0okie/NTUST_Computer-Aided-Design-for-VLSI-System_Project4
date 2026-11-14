@@ -198,3 +198,23 @@ claude的擾動主要作用在list-scheduling priorities與forward/backward重�
 資源順序實作通過4,772次relocation/undo檢查，其中994個有環候選被拒絕；另120個小DAG、過期deadline、INT_MAX capacity，以及23個CLI checker輸出（含15k深鏈/寬圖、短預算、h/e）均通過。ASan因系統缺少libasan.so.8.0.0無法連結，沒有宣稱sanitizer通過。採用seed的closure增加work guard與重工作之間的deadline檢查，詳見heuristic-sources.md。
 
 本輪額度消耗比預期快，07:37:17Z已剩17%；現在只完成已啟動的hard-order-stage1全50評估與收尾，不另開新階段。source已凍結，eval使用immutable snapshot，MLRCS_ORDER_LOG紀錄同次seed/final比較。若額度先到門檻，已提交source/測試與基線仍可重現，進行中結果每case會寫入codex-results.tsv。尚未看到完整stage1結果前，不宣稱贏過claude。
+
+### 第一階段收尾：critical resource-order 完整50case負結果
+
+完整評估已完成（source內容與 `4f1f4c9` 逐檔SHA-256一致，整體hash `493e06a76aed5d2d7ad5de3b2ec3ebb044c92a2e10be2145144fb1ccfd42ab16`）。snapshot是在commit前建立，所以manifest的revision為1cd8e2c＋working-tree；TSV的6e2c6ab來自shared symlink的git metadata，不是實際source。固定分母仍為 `hard-best-reference.tsv`（sha256 `1028969b53871ea3bfc94ae0286bf53c2a0f236140ad13d22434398be3b6d6e7`）。
+
+50/50 case在原正式run中均經 `tools/check.py` 驗證OK；`tools/eval.py`每次run後立即呼叫checker，但在finally刪除整個work目錄，因此原始50份schedule未保留，**本次沒有重新驗證原排程**。收尾重新驗證50個唯一case集合、全部check欄位、telemetry final latency與TSV逐case一致、source/reference hashes，以及final不差於同次seed；全部通過。重現資料分析：`python3 notes/summarize_hard_stage1.py`。重跑scheduler的原始命令與固定snapshot來源見hard-order-stage1-command/source-manifest；`hard-stage-eval.py`是當時一次性執行紀錄（有防覆寫assert），重跑需使用新tag與輸出檔。後續正式評估應另外保留每case輸出，補足這個共用eval工具的可稽核性限制。
+
+| 指標 | 第一階段 | 同機claude@f275c81 baseline |
+|---|---:|---:|
+| latency / frozen best 幾何平均 | 1.00446541624 | 1.00446541624 |
+| 等於frozen best | 37/50 | 37/50 |
+| 超出frozen best | 13個，各+1 | 13個，各+1 |
+| 總runtime | 420.74s | 362.14s |
+| 單case最大runtime | 12.68s | 10.05s |
+
+clean build14.5s，計時CPU4–7；未發生checker failure或60秒timeout。same-run seed→final **0改善、0退步**，對同機claude **0勝、50平、0負**。共有15個bound直接結束，35個進入search，總15,625,255候選、131,158接受移動。可見plateau確實在移動，但本次critical lane-order鄰域與評分沒有跨過latency barrier。雖然1.004465小於claude公開1.00459，這個差異已在未加新pass的同機baseline出現，不能歸功於新方法，亦不宣稱贏過claude。
+
+已審查當前shared/best.tsv，沒有任何strict latency/LB改善，因此保留其他路線的較強數值及來源。claude stage5另將chains_s579_n2453:16,9,3從127改126，若用本次收尾時的live best計算，stage1 geo為1.00462423838；這是分母改變，不是本階段排程退步，正式跨階段比較以固定分母為準。此stage只驗證heuristic，沒有新增最優證明。已讀claude最新stage5 Q10（91cf561）：deterministic工作量、目標DFS、plateau/FBI已有探索，後續避免重複。
+
+決定與未完成：此stage新增resource-order pass沒有latency收益；保留source及完整負結果供後續改進，不以runtime當優化目標，但後續不應把更多時間花在同一無效鄰域而沒有新假設。尚未完成新版本全預設76case評估、新有效h/e差異測資、ASan（系統缺libasan）及正式報告；沒有把它們寫成已完成。下一階段由主導者依claude stage5提出不同的heuristic假設，保留同次seed/final因果紀錄及固定工作量比較，正式eval保存schedule。
