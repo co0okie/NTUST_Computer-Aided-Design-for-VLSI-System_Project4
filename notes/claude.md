@@ -285,3 +285,37 @@ opus subagent；程式 b4c6427，評估列 69212d7（note=`stage7: ...`）。
 180 ops（63/59/58），深度 20，限制 3,3,3：`-h` 26（LB 24，2.1 s，3 次相同）、`-e` 25 optimal（2.4 s）。輸出在 `notes/claude_gap4_{h,e}.txt`。
 搜尋：約 3.1 萬組 layered 候選、168 次 `-e`，只有這一個 hit；180 ops 以下所有 `-h`>LB 的候選 `-e` 都沒有更好（多半只是 LB 太弱）。gap3 已移除。
 未做：b4c6427 上完整的 `-e` 評估（預設 suite 與難測資）；big2；4 個 open layered case。
+
+## 階段 8：big2——開頭的 ramp search 與祖先集合聯集的 idle bound
+
+### 完整 `-e` 評估（b4c6427 快照，Gurobi 2 threads；評估列 5bfa3c5）
+- 預設 suite：76 全 OK，72 證明，big2 ×4 too_large，最大 52.04 s（與階段 6 相同）。
+- 難測資：50 全 OK，38 證明（階段 6 用 4 threads 是 40）。少的 2 個（funnel_s1200 135、layered_s557 63 timelimit）
+  以 4 threads 在 380b8dd 重跑即恢復（135 optimal 20.5 s；62 optimal 47.9 s）⇒ **是 thread 數造成，不是程式退步**；
+  也代表這兩個證明貼著時限，評測機核心少時會掉。
+
+### big2（opus subagent；11c648d、380b8dd；評估列 8767b2b，note=`stage8: ...`）
+量測（df7047e 的排程；big2 實際 9647 ops：7501 AND、2116 OR、30 NOT；瓶頸 AND）：
+
+| 限制 | L / LB | AND idle | 開頭 | 中段 | 結尾 | 已證明不可避免（開頭／結尾） |
+|---|---|---|---|---|---|---|
+| 1,1,1 | 7517 / 7512 | 16 | 15 | 0 | 1 | 10 / 1 |
+| 2,2,1 | 3761 / 3758 | 21 | 19 | 0 | 2 | 12 / 2 |
+| 3,2,2 | 2514 / 2508 | 41 | 36 | 0 | 5 | 18 / 3 |
+| 8,8,4 | 946 / 945 | 67 | 53 | 0 | 14 | 40 / 14 |
+
+**中段 idle 全為 0**——階段 3 的推論「差距不只在開頭」是錯的（當時 guided schedule 沒變好另有原因）。差距幾乎全在開頭：tail priority 挑 OR 的順序差，AND 太晚開工。
+離線精確值（Gurobi＋窮舉交叉驗證）：OR 預算 B 時最多完成的 AND 數 g(13)=3、g(14)=4、g(15)=8、g(16)=12。
+- **ramp search**（`ramp_schedule`，n > 5000 才啟用，用原本閒置的 20% DFS 預算）：規劃前 64 步，每次挑一組「某個 AND 還缺的 OR/NOT 祖先」，
+  以「備齊的 AND 數 ÷ 花費的 unit-step」排名加擾動；64 步後照目前最佳排程的順序，再 2 輪 FBI。候選數輪流 16/32/64、noise 輪流 0.5/1/2。
+- **`start_idle_bound`**（`src/bounds.cpp`）：S＝step t 前完成的 AND ⇒ S 的 OR/NOT 祖先聯集 U 必須在 t−1 步內做完（每 kind ≤ c_k(t−1)）；
+  精確窮舉 U（祖先集合的聯集，128-bit hash 去重，t 逐步加深，超過 work 上限停在最後完整的 t）得 M(t)，與 head 貪婪計數取 min ⇒ 開頭 idle 下限；
+  mirror 得結尾；兩視窗步數和 ≤ 原 LB 時 `L ≥ ceil((N_b+idle_s+idle_e)/c_b)`。
+- 結果：**7517→7514（LB 7512→7513）、3761→3759、2514→2511、946→945（＝LB，證明最佳，1.1 s）**。預設 suite 現在 73/76 證明。
+  n ≤ 5000 的路徑不變：難測資 50 個 latency／LB 與階段 7 逐筆相同（1.00145），claude_gap4 仍 26 vs 25。
+- 正確性：3,290 小 case 無違反（但新 bound 在小 case 上沒提高任何 LB，驗不到）；另以 1,504 個實際排程逐步檢查「前／後 t 步完成的 AND 數 ≤ 上限」：0 違反，7,460 個 step 恰等於上限。
+- 負結果：純 ratio 貪婪（無 supply/slack）；mirror ramp（修 3,2,2 結尾）；ramp 預算 ×2.5；只規劃 32 步（1,1,1 退回 7517）；候選數 128。
+- 確定性：big2:8,8,4 與 3,2,2 閒置 ×2＋負載 ×1 逐位元相同（3,2,2 負載下 26.9 s，接近 30 s 保險）。
+- 剩餘差距：1,1,1 開頭 12 格（bound 11）；2,2,1 開頭 15 格（要 13，bound 12）；3,2,2 開頭 27（bound 20）、結尾 5（bound 3）。
+  下一步：用 bound 窮舉找到的最佳聯集 U 當 ramp 的第一個 bundle；bound 加入時間順序的巢狀約束。
+- `-e` 回歸（380b8dd，4 threads）：big2 7514／3759／2511 too_large、8,8,4 945 bound；gap4 25 optimal。

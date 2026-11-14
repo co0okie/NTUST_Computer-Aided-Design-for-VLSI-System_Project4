@@ -1539,3 +1539,10 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-14 05:15	380b8dd	xor_s265_n192:5,6,4	h	21	21			0.72	OK	stage8: hard suite, -h
 2026-11-14 05:15	380b8dd	xor_s265_n192:8,5,7	h	15	15			0.72	OK	stage8: hard suite, -h
 2026-11-14 05:15	380b8dd	claude_gap4:3,3,3	h	26	24			2.57	OK	stage8: hard suite, -h
+2026-11-14 05:18	8767b2b	aoi_big2:1,1,1	e	7514	7513	7514	too_large	52.03	OK	stage8: -e regression at 380b8dd (4 threads)
+2026-11-14 05:19	8767b2b	aoi_big2:2,2,1	e	3759	3758	3759	too_large	52.04	OK	stage8: -e regression at 380b8dd (4 threads)
+2026-11-14 05:20	8767b2b	aoi_big2:3,2,2	e	2511	2508	2511	too_large	52.03	OK	stage8: -e regression at 380b8dd (4 threads)
+2026-11-14 05:20	8767b2b	aoi_big2:8,8,4	e	945	945	945	bound	1.17	OK	stage8: -e regression at 380b8dd (4 threads)
+2026-11-14 05:20	8767b2b	funnel_s1200_n281:1,2,1	e	135	135	135	optimal	20.48	OK	stage8: -e regression at 380b8dd (4 threads)
+2026-11-14 05:21	8767b2b	layered_s557_n1782:12,16,7	e	62	62	63	optimal	47.90	OK	stage8: -e regression at 380b8dd (4 threads)
+2026-11-14 05:21	8767b2b	claude_gap4:3,3,3	e	25	25	26	optimal	2.72	OK	stage8: -e regression at 380b8dd (4 threads)
