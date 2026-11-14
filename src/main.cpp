@@ -95,7 +95,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
     }
 
     TRY(auto const netlist, read_blif(o.blif));
-    TRY(auto const heuristic, list_schedule(netlist, o.resources));
+    TRY(auto const heuristic, list_schedule(netlist, o.resources, clock));
     TRY_VOID(validate(netlist, o.resources, heuristic));
 
     if (o.mode == Mode::Heuristic) {

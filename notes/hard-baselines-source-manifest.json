@@ -1,0 +1,54 @@
+{
+  "manifest_sha256": "9d2c0fa0a067f27fc8ef0b15aef4a28b01ce7f293412b9e4ce6e6d9d5bb0abae",
+  "reference_sha256": "1028969b53871ea3bfc94ae0286bf53c2a0f236140ad13d22434398be3b6d6e7",
+  "sources": {
+    "codex": {
+      "revision": "1cd8e2ca148953af2d4262acbfdfe4dde9f00686",
+      "snapshot": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/hard-baseline-codex",
+      "files": {
+        "CMakeLists.txt": "e7583dbbda47fb04d4bb743a3eb694c5f85754c7e379872cd4db7a38c2abe853",
+        "src/blif.cpp": "ceb250c8521424c94e7d1bbc7c1fb19ae8d28e8c7aff827d4f0549851f18e507",
+        "src/blif.hpp": "1df150ca3413514e51c45d7250b272ca64b5e2cc8e1b4d319e8ff775fb8b0b00",
+        "src/clock.hpp": "1f4f5d1d3bdd99c5cf52ce7ebbe0dc0581d01fcc04d3304f89e387b08a056c74",
+        "src/gurobi.cpp": "428321db54ce8b17558d0d8214ee290b0d57723a77e0eb229672ee653e4b989a",
+        "src/gurobi.hpp": "48cbebdd56496e69624c76cf6f8d7cdfcbbfa12a23437e88cbcce16b6095c7cd",
+        "src/heuristic.cpp": "60eeec7d5acd4c1e549d2be17cb3753a0816027152a359f328b85d22f02e9b01",
+        "src/heuristic.hpp": "74104ec831c4a5a6fd6ade8c6578d654c2a3e2d9e57ce19e2c230b6e3ec35f7e",
+        "src/ilp.cpp": "465e0d0be2c25cc898b4287a3756c4f1f701e403d8578aca17349d451e7e39fb",
+        "src/ilp.hpp": "ea98bed04d4b73b18f3bdf886d7167d53a32ba5dc1536017ae3482dfa927f538",
+        "src/main.cpp": "266db0d388ae7fe4fa38c163c407f3bed6e5d4dc7d78271bd7445c55b6ea2644",
+        "src/netlist.hpp": "d84dcaf7db1095b8d7edc1d2050f6706e572a2584f0c8ea9cec750ba570722ee",
+        "src/result.hpp": "f6658fbcbdfd8be8d91b9f187cee9fbc6e0adf5b7bf82251d7641c5f41dedf58",
+        "src/schedule.cpp": "817edacf8a2d84efbe7513e06ec92341d1bc0f81166f7ca7c8fbd8a6213f95e2",
+        "src/schedule.hpp": "657202711b8c583af3115e9e29a6ea09a6d594848ba57e432727e6aebf95b390"
+      },
+      "sha256": "31173ce71c4d33d958aef129c928e7a7678502b372020e26c49533bcf3c81795"
+    },
+    "claude": {
+      "revision": "f275c819e4809e92604fd2921e0a420aff55ee52",
+      "snapshot": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/hard-baseline-claude",
+      "files": {
+        "CMakeLists.txt": "e7583dbbda47fb04d4bb743a3eb694c5f85754c7e379872cd4db7a38c2abe853",
+        "src/blif.cpp": "ceb250c8521424c94e7d1bbc7c1fb19ae8d28e8c7aff827d4f0549851f18e507",
+        "src/blif.hpp": "1df150ca3413514e51c45d7250b272ca64b5e2cc8e1b4d319e8ff775fb8b0b00",
+        "src/bounds.cpp": "52565b555146d4f6835cf8bbe9e52bf782d8db85cdf8831759c74e4decf4c3d3",
+        "src/bounds.hpp": "bf18ca60c40f28b3a3784040b8103689a20d82a09be150bfbe39226f1678ddeb",
+        "src/clock.hpp": "1f4f5d1d3bdd99c5cf52ce7ebbe0dc0581d01fcc04d3304f89e387b08a056c74",
+        "src/gurobi.cpp": "e03085136ccb28de2045547d80ef983a6676d2a9b9f3584aff2cb7a39913b8fd",
+        "src/gurobi.hpp": "dbcced652b72fa5935c8494dfe10f82c47851e2e7369a30640fb45b829062f76",
+        "src/heuristic.cpp": "a72fdddb17bea0840cc60b8925fd2de9db1a4a368b7aff8a38721e97c86f8122",
+        "src/heuristic.hpp": "76ec74212672117b40f46995fd6acb01ff2c817c083c88f1337b2b6427709055",
+        "src/ilp.cpp": "a1bb02f3f3405877952d82d948dde5931ff4b76ba62ae064cb55ccaa19642658",
+        "src/ilp.hpp": "7b16e99cd9a368346e9bc34399f1729947c5693ef92e4a3f46ab4b5c9a8ded9d",
+        "src/main.cpp": "bf520f34e60985252df85efb8ab6381ab1c6fdae2cfc3ef1bfda5f791d8b8057",
+        "src/netlist.hpp": "d84dcaf7db1095b8d7edc1d2050f6706e572a2584f0c8ea9cec750ba570722ee",
+        "src/opgraph.cpp": "919c595711f4181ec976812e1324c0ff7a643f0dea91de14a06c8cc62cbe4838",
+        "src/opgraph.hpp": "5637991af28c31966d0066d605fc7bed4f6b0b6f18cb7d4931a9a82c66992858",
+        "src/result.hpp": "f6658fbcbdfd8be8d91b9f187cee9fbc6e0adf5b7bf82251d7641c5f41dedf58",
+        "src/schedule.cpp": "02c9a2f6b58e561f71e56a525600dd33a91419bb449e9b00558e69ce985a3571",
+        "src/schedule.hpp": "02f3255621cde8a934faf4e840b8c720faf8d94ff85b037eba9121fcda039068"
+      },
+      "sha256": "e66fd5aaee59dc5f40c0c870019a14a32463c020cc49a1ccb91849a94963712d"
+    }
+  }
+}

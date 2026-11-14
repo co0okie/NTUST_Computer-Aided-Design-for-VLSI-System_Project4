@@ -1,10 +1,29 @@
 #include "heuristic.hpp"
+#include "seed_heuristic.hpp"
+#include "resource_order.hpp"
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
 
 #include <algorithm>
 #include <queue>
 #include <utility>
 
 namespace {
+
+// Optional research sidecar; no file is opened unless explicitly requested. Each
+// headerless TSV row contains model, capacities, seed/final latency, counters,
+// enabled flag and skip/search reason. Logging failure cannot discard a schedule.
+void log_order_search(Netlist const &n, Resources const &r, OrderSearchStats const &stats,
+                      bool enabled, char const *reason) {
+    auto const *path = std::getenv("MLRCS_ORDER_LOG");
+    if (!path || !*path) return;
+    std::ofstream out(path, std::ios::app);
+    out << n.model << '\t' << r.limit[0] << '\t' << r.limit[1] << '\t' << r.limit[2]
+        << '\t' << stats.initial_latency << '\t' << stats.final_latency
+        << '\t' << stats.attempts << '\t' << stats.feasible << '\t' << stats.accepted
+        << '\t' << (enabled ? 1 : 0) << '\t' << reason << '\n';
+}
 
 // Height of each node: 1 + max height over fanouts (an operation with no fanout has height 1).
 std::vector<std::int32_t> heights(Netlist const &n) {
@@ -18,7 +37,7 @@ std::vector<std::int32_t> heights(Netlist const &n) {
 
 } // namespace
 
-Result<Schedule> list_schedule(Netlist const &n, Resources const &r) {
+static Result<Schedule> height_schedule(Netlist const &n, Resources const &r) {
     TRY_VOID(check_resources(n, r));
     auto const height = heights(n);
 
@@ -62,4 +81,48 @@ Result<Schedule> list_schedule(Netlist const &n, Resources const &r) {
         s.latency = t;
     }
     return s;
+}
+
+Result<Schedule> list_schedule(Netlist const &n, Resources const &r, Clock const &clock) {
+    TRY(auto baseline, height_schedule(n, r));
+    auto const *toggle = std::getenv("MLRCS_ORDER_SEARCH");
+    bool const enabled = !toggle || std::string(toggle) != "0";
+    if (n.num_ops() == 0 || clock.remaining() <= 0.25) {
+        OrderSearchStats stats;
+        stats.initial_latency = stats.final_latency = baseline.latency;
+        log_order_search(n, r, stats, enabled, n.num_ops() == 0 ? "empty" : "budget");
+        return baseline;
+    }
+    auto const graph = make_op_graph(n, r);
+    auto const reserve = std::min(5.0, clock.budget * 0.2);
+    auto const seed_deadline = std::min(clock.elapsed() + 5.0, clock.budget - reserve);
+    auto seed = heuristic_schedule(graph, clock, seed_deadline);
+    if (baseline.latency < seed.latency) {
+        seed.latency = baseline.latency;
+        for (std::int32_t i = 0; i < graph.n; ++i) seed.step[i] = baseline.step[graph.node[i]];
+    }
+    auto const restart_deadline = std::min(10.0, clock.budget - reserve);
+    improve_schedule(graph, seed, clock, restart_deadline);
+    OrderSearchStats stats;
+    stats.initial_latency = stats.final_latency = seed.latency;
+    char const *reason = "disabled";
+    if (enabled) {
+        auto const deadline = std::min(clock.elapsed() + 8.0, clock.budget - reserve);
+        reason = seed.latency <= seed.lower_bound ? "bound" :
+                 clock.elapsed() >= deadline ? "budget" : "search";
+        stats = improve_resource_order(graph, seed, clock, deadline);
+        if (std::getenv("MLRCS_ORDER_DIAGNOSTICS"))
+            std::cerr << "order-search initial=" << stats.initial_latency
+                      << " final=" << stats.final_latency << " attempts=" << stats.attempts
+                      << " feasible=" << stats.feasible << " accepted=" << stats.accepted << '\n';
+    }
+    auto result = to_schedule(n, graph, seed.step);
+    TRY_VOID(validate(n, r, result));
+    log_order_search(n, r, stats, enabled, reason);
+    return result;
+}
+
+Result<Schedule> list_schedule(Netlist const &n, Resources const &r) {
+    Clock clock;
+    return list_schedule(n, r, clock);
 }

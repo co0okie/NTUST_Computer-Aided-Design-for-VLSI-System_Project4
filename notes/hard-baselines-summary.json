@@ -1,0 +1,29 @@
+{
+  "reference_sha256": "1028969b53871ea3bfc94ae0286bf53c2a0f236140ad13d22434398be3b6d6e7",
+  "stages": {
+    "codex": {
+      "rows": 50,
+      "matched_checker_ok": 50,
+      "failures": [],
+      "geomean": 1.039333164707012,
+      "total_runtime": 0.1,
+      "max_runtime": 0.02,
+      "equal_best": 7
+    },
+    "claude": {
+      "rows": 50,
+      "matched_checker_ok": 50,
+      "failures": [],
+      "geomean": 1.0044654162376425,
+      "total_runtime": 362.14,
+      "max_runtime": 10.05,
+      "equal_best": 37
+    }
+  },
+  "paired": {
+    "count": 50,
+    "codex_better": 0,
+    "claude_better": 41,
+    "equal": 9
+  }
+}

@@ -176,3 +176,25 @@ C1355:2,2,1 固定原 heuristic UB=185、原有效 LB=178；四組均沒有改�
 決定：production src保持不變。本階段未刷新default suite的best latency/LB，shared/best.tsv只追加自製gap的驗證來源，保留他路較強紀錄。已保存固定source manifest、完整phase摘要、48個驗證紀錄與8筆diagnostic結果到codex-results.tsv；harness不是eval.py，明確記載獨立check.py、60秒外部限制、55秒程式預算、CPU4–7與Threads4。
 
 未完成且本輪不做：更好UB下的同因素比較、presolve/crossover設定消融、full suite與production整合。下一步若再授權，先整合或固定已驗證的較好heuristic UB，再決定是否值得針對presolve/crossover做單因素對照；避免重做已知141證明或把時間當成額外目標。到此按主持人要求停止。
+
+## 2026-11-13 恢復：heuristic 優先與 hard suite
+
+已 merge main@6e2c6ab，停止 ILP formulation 消融。恢復時 worktree 乾淨，無殘留 mlrcs/Gurobi/eval 行程；shared/tmp/codex 約50MiB為已完成研究的診斷與驗證資料，保留供重現。新鮮額度回報2026-11-14T07:26:10Z剩88%。
+
+匯入 benchmark/hard/，來源 claude@f275c81；47個BLIF、50個case，保持原檔不改。主要指標是這50case的latency/best-known幾何平均。使用 shared/best.tsv 的固定50case快照做階段間公平對照，另在刷新best後報告新的即時指標，不能混用分母。claude公開參考成績1.00459、14case多1step，將以同機CPU4–7重新驗證對照。
+
+### 第一階段假設：資源順序局部搜尋
+
+claude的擾動主要作用在list-scheduling priorities與forward/backward重排。本路線改在合法排程的「每台資源上的operation順序」直接搜尋：為每種operation建立至多capacity條machine lanes，以相鄰machine順序作額外precedence edges，對聯合DAG計算最早時刻。若無環，machine chain保證每台機器同時最多一個operation，原edges保證資料相依，因此得到合法排程。
+
+在critical machine edges附近做交換與跨lane插入，利用cycle check排除不合法次序；允許中間走等長或受控退步以逃離plateau，但輸出保留best-ever且必須validate。主要動機是hard suite中大量只差1cycle的排程，可能需要改動特定瓶頸資源順序，而非再全域隨機擾動priority。
+
+起點採用claude@f275c81的seed heuristic、bounds/opgraph作為已知強基線，來源另記heuristic-sources.md；本路線研究的新增部分是資源順序搜尋，不能把移植本身誤認成自己的創新。採用相同seed流程作enable/disable ablation，兩種mode使用同一heuristic流程，避免-e基線較-h弱。時間是硬限制，預算內可換latency；預留輸出/solver空間，並限制每個候選的記憶體與工作量。
+
+### Hard 基線與實作驗證（完整評估進行中）
+
+兩個固定source對照各50個case，全部checker OK。原codex（merge main後、尚未採用seed）幾何平均1.03933316471、7/50等於best；claude@f275c81同機重跑1.00446541624、37/50等於best，其餘13個各差1。與公布的1.00459/36個相差一個case，符合時間預算restart的執行軌跡差異，不把此差異當演算法改善。原codex對claude：0勝、9平、41負。raw/summary/來源hash及固定分母保存在notes/hard-baselines*與hard-best-reference.tsv。
+
+資源順序實作通過4,772次relocation/undo檢查，其中994個有環候選被拒絕；另120個小DAG、過期deadline、INT_MAX capacity，以及23個CLI checker輸出（含15k深鏈/寬圖、短預算、h/e）均通過。ASan因系統缺少libasan.so.8.0.0無法連結，沒有宣稱sanitizer通過。採用seed的closure增加work guard與重工作之間的deadline檢查，詳見heuristic-sources.md。
+
+本輪額度消耗比預期快，07:37:17Z已剩17%；現在只完成已啟動的hard-order-stage1全50評估與收尾，不另開新階段。source已凍結，eval使用immutable snapshot，MLRCS_ORDER_LOG紀錄同次seed/final比較。若額度先到門檻，已提交source/測試與基線仍可重現，進行中結果每case會寫入codex-results.tsv。尚未看到完整stage1結果前，不宣稱贏過claude。

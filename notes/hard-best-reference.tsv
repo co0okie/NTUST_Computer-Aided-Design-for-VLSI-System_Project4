@@ -1,0 +1,51 @@
+case	best_latency	lower_bound	source	note
+chains_s412_n80:3,2,1	18	18	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+chains_s384_n116:4,5,2	14	14	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+chains_s378_n238:2,2,1	54	54	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+chains_s381_n248:4,4,4	27	27	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+chains_s1141_n389:2,3,2	74	74	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+chains_s1107_n462:4,3,2	60	60	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+chains_s1122_n546:5,5,4	45	45	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+chains_s1108_n561:6,2,2	110	110	claude@55567d1 -e --time 300 offline	hard suite; proven optimal
+chains_s1101_n620:3,3,2	90	82	claude@55567d1 -e --time 300 offline	hard suite
+chains_s1115_n994:6,5,1	105	105	claude@55567d1 -e --time 300 offline	hard suite; proven optimal
+chains_s580_n1559:10,21,3	97	97	claude@55567d1 -e --time 120 offline	hard suite; proven optimal
+chains_s579_n2453:16,9,3	127	124	claude@55567d1 -e --time 120 offline	hard suite
+chains_s575_n2879:12,15,6	112	112	claude@55567d1 -e --time 120 offline	hard suite; proven optimal
+chains_s2005_n4600:10,18,6	177	167	claude@55567d1 -e --time 120 offline	hard suite
+funnel_s481_n88:2,4,1	19	19	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+funnel_s456_n89:1,2,1	37	37	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+funnel_s493_n89:1,2,1	39	39	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+funnel_s468_n91:1,2,1	32	32	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+funnel_s468_n91:1,3,1	30	30	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+funnel_s512_n103:2,4,1	20	20	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+funnel_s552_n117:1,2,1	46	46	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+funnel_s510_n135:1,2,1	52	52	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+funnel_s1167_n235:1,2,1	106	106	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+funnel_s1210_n243:4,2,1	71	71	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+funnel_s1200_n281:1,2,1	135	135	claude@55567d1 -e --time 300 offline	hard suite; proven optimal
+funnel_s1199_n284:1,2,1	141	141	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+funnel_s1182_n302:1,2,1	149	149	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+funnel_s1161_n394:1,2,1	162	162	claude@55567d1 -e --time 300 offline	hard suite; proven optimal
+layered_s218_n108:4,5,1	16	16	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+layered_s147_n117:6,4,3	12	12	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+layered_s123_n124:2,1,2	39	39	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+layered_s129_n252:5,3,2	30	30	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+layered_s1071_n320:5,8,4	22	22	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+layered_s143_n418:4,4,3	47	47	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+layered_s1008_n616:8,8,5	34	34	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+layered_s1008_n616:8,8,6	34	34	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+layered_s1074_n757:5,4,2	87	84	claude@55567d1 -e --time 300 offline	hard suite
+layered_s1041_n762:4,6,3	77	77	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+layered_s1076_n851:8,8,6	47	47	claude@55567d1 -e --time 40 offline	hard suite; proven optimal
+layered_s1006_n1188:14,9,8	48	48	claude@55567d1 -e --time 120 offline	hard suite; proven optimal
+layered_s557_n1782:12,16,7	62	62	claude@55567d1 -e --time 120 offline	hard suite; proven optimal
+layered_s554_n1785:11,19,9	67	66	claude@55567d1 -e --time 120 offline	hard suite
+layered_s559_n1926:8,6,4	125	123	claude@55567d1 -e --time 120 offline	hard suite
+layered_s561_n2627:16,20,7	88	87	claude@55567d1 -e --time 120 offline	hard suite
+layered_s2003_n3616:12,15,12	123	117	claude@55567d1 -e --time 120 offline	hard suite
+layered_s2001_n4800:49,39,20	64	64	claude@55567d1 -e --time 120 offline	hard suite; proven optimal
+xor_s261_n72:4,5,3	12	12	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+xor_s267_n96:3,3,2	18	18	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+xor_s265_n192:5,6,4	21	21	claude@55567d1 -e --time 30 offline	hard suite; proven optimal
+xor_s265_n192:8,5,7	15	15	claude@55567d1 -e --time 30 offline	hard suite; proven optimal

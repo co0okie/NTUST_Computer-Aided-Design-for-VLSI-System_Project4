@@ -33,7 +33,9 @@ Optional arguments:
 
 Algorithm notes:
 
-- The heuristic uses list scheduling by longest remaining path, then BLIF definition order.
+- The heuristic retains the original height-priority schedule, adds resource-aware seed
+  scheduling and fixed-seed priority restarts, then searches resource-lane orders near critical
+  paths. It retains the best validated schedule. Source attribution: notes/heuristic-sources.md.
 - A resource-window lower bound uses per-kind unit-job EDF scheduling. A memory/work-capped
   ancestor/descendant analysis strengthens the windows; larger inputs use path-only windows.
 - The exact model uses time-indexed binary variables, precedence and per-cycle resource
@@ -50,6 +52,8 @@ Small reproducible counterexample (four operations):
 ./build/mlrcs -e benchmark/codex_gap.blif 1 1 1
 ```
 
-The heuristic has latency 4; Gurobi proves latency 3. Regenerate the input with
+The original height-priority heuristic had latency 4 and Gurobi proved 3. The stronger
+heuristic may now also reach 3; this historical case must be rechecked before submission.
+Regenerate the input with
 `python3 notes/generate_codex_gap.py`. Research data, validation scripts and report figures are
 in `notes/`; only CMake and `src/` are needed to build the program.
