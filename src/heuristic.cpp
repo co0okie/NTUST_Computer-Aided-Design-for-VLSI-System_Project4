@@ -694,8 +694,8 @@ void local_search(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget
 void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
                       Clock const &clock, double deadline_elapsed, std::int64_t &work) {
     if (g.n == 0 || r.latency <= r.lower_bound) return;
-    // Phase 1 (20%): search for latency - 1 (target_dfs), repeated while it succeeds. In
-    // chunks of 1/8 of the phase, alternately on the problem and on its mirror (they fail in
+    // Phase 1 (20%): search for latency - 1 (target_dfs), repeated while it succeeds. After the
+    // first chunk, chunks alternate between the mirror and the problem itself (they fail in
     // different places: the forward search where a kind starves near the end, the mirror one
     // near the start). Only for n <= 5000: the recursion depth is about n + latency.
     constexpr double dfs_share = 0.2, restart_share = 0.3;
@@ -715,8 +715,10 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_bu
             if (target != chunk_target) chunk_target = target, chunk = 0;
             bool const on_mirror = chunk % 2 == 1;
             DfsOptions o;
-            o.cost_limit = std::min(total - used, std::max<std::int64_t>(1, total / chunks));
-            o.first_share = chunk < 2 ? 0.3 : 0.0; // the unperturbed search once per direction
+            // The first chunk (forward, unperturbed only) is the one that can prove the target
+            // infeasible: 40% of the phase; then chunks of 1/8 alternate mirror and forward
+            o.cost_limit = std::min(total - used, std::max<std::int64_t>(1, chunk == 0 ? total * 2 / 5 : total / chunks));
+            o.first_share = chunk == 0 ? 1.0 : chunk == 1 ? 0.3 : 0.0;
             o.seed = 0x9e3779b97f4a7c15ULL * (chunk + 1) + static_cast<std::uint64_t>(target);
             ++chunk;
             DfsResult d;
