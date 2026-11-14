@@ -1,0 +1,7 @@
+# commit 6e2c6ab, build 14.7 s, cpu 4-7
+case	mode	latency	lower_bound	heuristic	status	time	check
+layered_s129_n252:5,3,2	h	31	28			10.04	OK
+funnel_s1210_n243:4,2,1	h	72	71			10.08	OK
+layered_s1008_n616:8,8,5	h	35	33			10.14	OK
+chains_s575_n2879:12,15,6	h	113	110			10.34	OK
+layered_s1076_n851:8,8,6	h	48	45			10.14	OK

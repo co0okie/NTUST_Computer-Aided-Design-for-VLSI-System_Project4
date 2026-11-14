@@ -234,3 +234,13 @@ Stage2已commit0c878af。Stage3針對名義退步未發生的問題，改逐個�
 METHOD=anneal為研究開關，預設single維持。正toy12ops/2資源8→6、Metropolis接受/拒絕測試、120小圖與23anneal CLI輸出通過。來源hash、原始輸出、checker與重現腳本保留，詳見notes/hard-order-stage3.md；5筆pilot進results、questions已通知、best audit無strict提升。尚未以新增order搜尋取得hard-suite因果收益；最新claude1.00145仍更強。
 
 主持人流程續接：下一階段改由另一subagent研究CEM serial SGS，避免繼續調SA溫度；本階段沒有追加實驗。
+
+### Stage4：CEM priority population / serial SGS，五case負結果
+
+Source新增priority_cem.cpp/.hpp，`MLRCS_ORDER_METHOD=cem`才啟用，single仍預設。固定seed、32×64population＋1seed decode、elite8、rank mean/std EMA=.3，std floor=.10，保留20%uniform與20%seed noise；n<=5000、100M work及原8秒wall保險。動機與方法詳見hard-order-stage4.md。
+
+重要理論修正：原以為serial SGS能在本題主動idle、擴大non-delay list scheduling解空間，但unit-time整數slot下此說法不成立：最終空slot在選operation時也空，ready operation會被earliest insertion放進去。故本輪僅測分布學習與不同eligible選擇軌跡；沒有把不存在的解空間優勢當結論。未來預約填洞、合法idle seed壓縮、seed排序每op不更晚的120random驗證、deterministic2049decode及guard測試均通過；既有5710moves/1226cycles與23CLI checker也通過。ASan未跑。
+
+同5case pilot全部原checker＋保存輸出重checker OK；seed→final依序31→31、72→72、35→35、113→113、48→48。每case64generations/2049feasible decode完成，0strict改善，總wall50.74s、max10.34s、fresh Release build14.7s（CPU4–7）。5個pilot的geo1.02136624985與seed完全相同，不可冒充全50指標。source aggregate71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb；notes/hard-order-stage4-pilot-*保留完整provenance/command/results/telemetry/summary。formal5列已追加codex-results.tsv，shared/best audit無strict改善，Q15已通知。
+
+依停止準則沒有全50評估；本輪沒有贏過claude的新證據。上次全50數字1.00446541624只是與同機claude baseline全平。下一個仍屬同路線的小假設是降低normalized rank noise，保留seed結構且維持20%global探索；尚未執行，必須先取得主導者階段決策，避免多參數grid。新差異測資/報告/完整76suite仍未完成。

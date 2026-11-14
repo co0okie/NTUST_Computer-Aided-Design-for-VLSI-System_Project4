@@ -1,0 +1,6 @@
+date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
+2026-11-14 02:48	6e2c6ab	layered_s129_n252:5,3,2	h	31	28			10.04	OK	hard-order-stage4-pilot source_sha256=71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb
+2026-11-14 02:48	6e2c6ab	funnel_s1210_n243:4,2,1	h	72	71			10.08	OK	hard-order-stage4-pilot source_sha256=71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb
+2026-11-14 02:48	6e2c6ab	layered_s1008_n616:8,8,5	h	35	33			10.14	OK	hard-order-stage4-pilot source_sha256=71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb
+2026-11-14 02:49	6e2c6ab	chains_s575_n2879:12,15,6	h	113	110			10.34	OK	hard-order-stage4-pilot source_sha256=71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb
+2026-11-14 02:49	6e2c6ab	layered_s1076_n851:8,8,6	h	48	45			10.14	OK	hard-order-stage4-pilot source_sha256=71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb

@@ -1,5 +1,5 @@
 // Standalone white-box regression: c++ -std=c++17 -O1 -Isrc
-// tests/resource_order.cpp src/bounds.cpp -o <test-binary>
+// tests/resource_order.cpp src/bounds.cpp src/priority_cem.cpp -o <test-binary>
 // Including the implementation deliberately exposes its private move/cycle helpers.
 #include "../src/resource_order.cpp"
 #include <cassert>

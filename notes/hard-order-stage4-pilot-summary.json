@@ -1,0 +1,22 @@
+{
+  "source_sha256": "71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb",
+  "cases_expected": 5,
+  "rows": 5,
+  "complete": true,
+  "checker_ok": 5,
+  "retained_outputs_rechecked": 5,
+  "frozen_geomean": 1.021366249850934,
+  "same_run_seed_frozen_geomean": 1.021366249850934,
+  "live_geomean": 1.021366249850934,
+  "live_reference_sha256": "fab84d4c8b534479713c8b9a3bd18612ab154c57663f13cda1fc0fbc661ad343",
+  "equal_frozen_best": 0,
+  "same_run_improvements": 0,
+  "same_run_regressions": 0,
+  "total_seconds": 50.74,
+  "max_seconds": 10.34,
+  "build_seconds": 14.7,
+  "failures": [],
+  "strict_live_best_improvements": [],
+  "outputs": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/hard-order-stage4-pilot/outputs",
+  "recheck_checker_sha256": "c3f6797b04a757598df4675d817ad1e3e15f7bbd9b1a2089f7b2954e4c57a3fb"
+}
