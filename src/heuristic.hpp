@@ -43,16 +43,24 @@ void restart_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_bu
                       std::int64_t &work, std::uint64_t seed, Clock const &clock,
                       double deadline_elapsed);
 
-// Depth-first search for a schedule with latency <= target (see heuristic.cpp). `infeasible`:
-// the search finished without one, which proves target infeasible.
+// Search for a schedule with latency <= target (see heuristic.cpp): depth-first, step by step,
+// with time-window propagation; restarted with perturbed branching orders. `infeasible`: the
+// first (unperturbed) search finished without a solution, which proves target infeasible.
+struct DfsOptions {
+    std::int64_t cost_limit = 0;      // elementary operations in all
+    double first_share = 0.3;         // of cost_limit, for the first search
+    std::int64_t restart_nodes = 1000; // search nodes per later restart
+    std::uint64_t seed = 1;
+};
 struct DfsResult {
     std::vector<std::int32_t> step; // empty: none found
     bool infeasible = false;
-    std::int64_t nodes = 0;
+    std::int64_t cost = 0;
+    std::int64_t restarts = 0;
 };
 DfsResult target_dfs(OpGraph const &g, std::vector<std::int32_t> const &tail,
                      std::vector<std::int32_t> const &incumbent, std::int32_t target,
-                     std::int64_t node_limit);
+                     DfsOptions const &options);
 
 // Iterated local search (seeded): perturb the priorities of the current schedule, two
 // forward-backward rounds, move to the result if its latency is not worse. Same stopping rules

@@ -395,59 +395,133 @@ std::pair<std::int32_t, std::int64_t> schedule_measure(std::vector<std::int32_t>
     return {latency, excess};
 }
 
-// Depth-first search state for target_dfs.
+// Search state for target_dfs: steps are decided in order 1, 2, ...; every open op keeps a
+// window [est, lst] of the steps it can still take if the target is to be met.
 struct TargetDfs {
     explicit TargetDfs(OpGraph const &graph) : g(graph) {}
 
     OpGraph const &g;
-    std::vector<std::int32_t> lst;  // latest step: target - tail
-    std::vector<std::int64_t> rank; // branching order inside a kind (smaller first)
-    std::int64_t node_limit = 0;
-    std::int64_t nodes = 0;
-    std::vector<std::int32_t> step, est; // step 0: not scheduled yet
-    std::vector<std::vector<std::pair<std::int32_t, std::int32_t>>> buckets; // by est: (lst, op)
-    std::vector<std::pair<std::int32_t, std::int32_t>> heap;
+    std::int32_t target = 0;
+    std::vector<std::int32_t> lst0;   // static latest step: target - tail
+    std::vector<std::int64_t> rank;   // tie-break inside a kind (smaller first)
+    std::vector<std::int64_t> noise;  // per-restart perturbation of the branching order
+    std::vector<std::int32_t> step;   // 0: open
+    std::vector<std::int32_t> est, lst; // windows of the open ops, valid after propagate
     std::int32_t remaining = 0;
+    std::int64_t nodes = 0, node_limit = 0;
+    std::int64_t cost = 0;     // elementary operations, for the work accounting
+    std::int64_t cost_cap = 0; // stop the current restart beyond this cost
+    // Scratch
+    std::vector<std::int32_t> raw, last_b, first_a, bucket_lst;
+    std::vector<std::size_t> bucket_start, fill;
 
-    // Steps 1..t are decided. Earliest steps of the open ops along precedence, then each kind
-    // on its own: unit jobs with release est and deadline lst on limit[k] machines, which EDF
-    // decides exactly. False: no completion meets the target.
+    // Steps 1..t are decided. Narrows the windows of the open ops to a fixpoint of
+    //  - precedence, forward (est) and backward (lst);
+    //  - per kind, interval reasoning for unit jobs on limit[k] machines: the ops whose whole
+    //    window lies in [a, b] need at most c (b - a + 1) of them (Hall's condition, which for
+    //    unit jobs is also sufficient), and when [a, b] is exactly full, an op that is not one
+    //    of them but could only run inside it on one side is pushed out to that side.
+    // False: no completion meets the target.
     bool propagate(std::int32_t t) {
-        for (std::int32_t i = 0; i < g.n; ++i) {
+        auto const n = g.n;
+        auto const W = target - t; // open steps t+1 .. target
+        for (std::int32_t i = 0; i < n; ++i) {
             if (step[i] != 0) continue;
-            std::int32_t e = t + 1;
-            for (auto const p : g.pred.row(i)) e = std::max(e, step[p] != 0 ? step[p] + 1 : est[p] + 1);
-            est[i] = e;
-            if (e > lst[i]) return false;
+            est[i] = t + 1;
+            lst[i] = lst0[i];
         }
-        auto const cmp = std::greater<std::pair<std::int32_t, std::int32_t>>();
-        for (int k = 0; k < OP_KINDS; ++k) {
-            std::int32_t count = 0;
-            for (std::int32_t i = 0; i < g.n; ++i) {
-                if (step[i] != 0 || g.kind[i] != k) continue;
-                auto const b = static_cast<std::size_t>(est[i] - t - 1);
-                if (b >= buckets.size()) buckets.resize(b + 1);
-                buckets[b].push_back({lst[i], i});
-                ++count;
+        if (W <= 0) return remaining == 0;
+        auto const S = static_cast<std::size_t>(W + 2);
+        auto const edges = static_cast<std::int64_t>(g.succ.item.size());
+        for (int round = 0; round < 8; ++round) {
+            bool changed = false;
+            cost += 2 * (n + edges);
+            for (std::int32_t i = 0; i < n; ++i) {
+                if (step[i] != 0) continue;
+                auto e = est[i];
+                for (auto const p : g.pred.row(i)) e = std::max(e, step[p] != 0 ? step[p] + 1 : est[p] + 1);
+                est[i] = e;
             }
-            heap.clear();
-            bool ok = true;
-            for (std::size_t s = 0; ok && (count > 0 || !heap.empty()); ++s) {
-                if (s < buckets.size()) {
-                    for (auto const &d : buckets[s]) {
-                        heap.push_back(d);
-                        std::push_heap(heap.begin(), heap.end(), cmp);
-                        --count;
+            for (std::int32_t i = n - 1; i >= 0; --i) {
+                if (step[i] != 0) continue;
+                auto l = lst[i];
+                for (auto const j : g.succ.row(i)) l = std::min(l, lst[j] - 1);
+                lst[i] = l;
+                if (est[i] > l) return false;
+            }
+            // Open ops bucketed by (kind, est - t), holding lst - t
+            cost += 2 * n;
+            bucket_start.assign(OP_KINDS * S + 1, 0);
+            for (std::int32_t i = 0; i < n; ++i)
+                if (step[i] == 0) ++bucket_start[g.kind[i] * S + static_cast<std::size_t>(est[i] - t) + 1];
+            for (std::size_t q = 0; q < OP_KINDS * S; ++q) bucket_start[q + 1] += bucket_start[q];
+            bucket_lst.resize(bucket_start[OP_KINDS * S]);
+            fill = bucket_start;
+            for (std::int32_t i = 0; i < n; ++i)
+                if (step[i] == 0) bucket_lst[fill[g.kind[i] * S + static_cast<std::size_t>(est[i] - t)]++] = lst[i] - t;
+            for (int k = 0; k < OP_KINDS; ++k) {
+                // For a = W down to 1: raw[b] = open ops of kind k with est - t >= a and
+                // lst - t == b; their running sum over b = a..W is the count of [a, b]
+                cost += static_cast<std::int64_t>(S * S / 2);
+                raw.assign(S, 0);
+                last_b.assign(S, 0);
+                first_a.assign(S, 0);
+                bool any_full = false;
+                auto const c = g.limit[k];
+                for (std::int32_t a = W; a >= 1; --a) {
+                    auto const base = static_cast<std::size_t>(k) * S + static_cast<std::size_t>(a);
+                    for (auto q = bucket_start[base]; q < bucket_start[base + 1]; ++q)
+                        ++raw[static_cast<std::size_t>(bucket_lst[q])];
+                    std::int32_t v = 0;
+                    for (std::int32_t b = a; b <= W; ++b) {
+                        v += raw[static_cast<std::size_t>(b)];
+                        auto const cap = c * (b - a + 1);
+                        if (v > cap) return false;
+                        if (v == cap && v > 0) {
+                            any_full = true;
+                            last_b[static_cast<std::size_t>(a)] = b;
+                            first_a[static_cast<std::size_t>(b)] = a; // a decreases: ends smallest
+                        }
                     }
                 }
-                for (std::int32_t u = 0; u < g.limit[k] && !heap.empty(); ++u) {
-                    std::pop_heap(heap.begin(), heap.end(), cmp);
-                    if (heap.back().first < t + 1 + static_cast<std::int32_t>(s)) ok = false;
-                    heap.pop_back();
+                if (!any_full) continue;
+                // Windows only shrink below, which never empties a full interval, so the pushes
+                // stay valid while they are applied
+                for (std::int32_t i = 0; i < n; ++i) {
+                    if (step[i] != 0 || g.kind[i] != k) continue;
+                    auto e = est[i] - t, l = lst[i] - t;
+                    cost += l - e + 1;
+                    // lst: the smallest a in (e, l] of a full [a, b] with b >= l; then before a
+                    for (bool moved = true; moved;) {
+                        moved = false;
+                        for (auto a = e + 1; a <= l; ++a)
+                            if (last_b[static_cast<std::size_t>(a)] >= l) {
+                                l = a - 1;
+                                moved = true;
+                                break;
+                            }
+                    }
+                    // est: the largest b in [e, l) of a full [a, b] with a <= e; then after b
+                    for (bool moved = true; moved;) {
+                        moved = false;
+                        for (auto b = l - 1; b >= e; --b) {
+                            auto const a = first_a[static_cast<std::size_t>(b)];
+                            if (a != 0 && a <= e) {
+                                e = b + 1;
+                                moved = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (e + t != est[i] || l + t != lst[i]) {
+                        est[i] = e + t;
+                        lst[i] = l + t;
+                        changed = true;
+                    }
+                    if (e > l) return false;
                 }
             }
-            for (auto &b : buckets) b.clear();
-            if (!ok) return false;
+            if (!changed) break;
         }
         return true;
     }
@@ -456,65 +530,103 @@ struct TargetDfs {
 
     bool search_step(std::int32_t t) {
         if (remaining == 0) return true;
-        Lists list; // ready ops per kind, in branching order
+        Lists list; // ready ops per kind, in branching order: earliest deadline first
         for (std::int32_t i = 0; i < g.n; ++i)
             if (step[i] == 0 && est[i] <= t) list[g.kind[i]].push_back(i);
-        for (auto &l : list)
+        cost += 2 * g.n;
+        for (auto &l : list) {
+            cost += static_cast<std::int64_t>(l.size()) * 8;
             std::sort(l.begin(), l.end(), [&](std::int32_t a, std::int32_t b) {
+                auto const ka = static_cast<std::int64_t>(lst[a]) * 1024 + noise[a];
+                auto const kb = static_cast<std::int64_t>(lst[b]) * 1024 + noise[b];
+                if (ka != kb) return ka < kb;
                 return rank[a] != rank[b] ? rank[a] < rank[b] : a < b;
             });
-        return choose(t, list, 0, 0, g.limit[0]);
+        }
+        // Deeper propagations overwrite lst; the choices at this step use this snapshot
+        Lists due;
+        for (int k = 0; k < OP_KINDS; ++k)
+            for (auto const i : list[k]) due[k].push_back(lst[i]);
+        return choose(t, list, due, 0, 0, g.limit[0]);
     }
 
     // Decide the ready ops c[k][pos..] of kind k (then the next kinds) for step t with
     // `capacity` units of kind k left. Only full selections min(ready, limit) are tried: for unit
     // times some list schedule is optimal, and list schedules never idle a unit next to a ready op.
-    bool choose(std::int32_t t, Lists const &c, int k, std::size_t pos, std::int32_t capacity) {
+    bool choose(std::int32_t t, Lists const &c, Lists const &due, int k, std::size_t pos,
+                std::int32_t capacity) {
         if (k == OP_KINDS) {
-            if (++nodes > node_limit) return false;
+            if (++nodes > node_limit || cost > cost_cap) {
+                nodes = node_limit + 1; // cut off: not exhausted
+                return false;
+            }
             return propagate(t) && search_step(t + 1);
         }
         auto const &list = c[k];
         if (capacity == 0 || pos == list.size()) {
             for (auto p = pos; p < list.size(); ++p)
-                if (lst[list[p]] <= t) return false; // postponed, but due now
-            return choose(t, c, k + 1, 0, k + 1 < OP_KINDS ? g.limit[k + 1] : 0);
+                if (due[k][p] <= t) return false; // postponed, but due now
+            return choose(t, c, due, k + 1, 0, k + 1 < OP_KINDS ? g.limit[k + 1] : 0);
         }
         auto const x = list[pos];
         step[x] = t;
         --remaining;
-        if (choose(t, c, k, pos + 1, capacity - 1)) return true;
+        if (choose(t, c, due, k, pos + 1, capacity - 1)) return true;
         step[x] = 0;
         ++remaining;
         if (nodes > node_limit) return false;
-        if (lst[x] > t && list.size() - pos - 1 >= static_cast<std::size_t>(capacity))
-            return choose(t, c, k, pos + 1, capacity);
+        if (due[k][pos] > t && list.size() - pos - 1 >= static_cast<std::size_t>(capacity))
+            return choose(t, c, due, k, pos + 1, capacity);
         return false;
     }
+
 };
 
 } // namespace
 
 DfsResult target_dfs(OpGraph const &g, std::vector<std::int32_t> const &tail,
                      std::vector<std::int32_t> const &incumbent, std::int32_t target,
-                     std::int64_t node_limit) {
+                     DfsOptions const &o) {
     TargetDfs s(g);
-    s.lst.resize(g.n);
+    s.target = target;
+    s.lst0.resize(g.n);
     s.rank.resize(g.n);
-    s.node_limit = node_limit;
     for (std::int32_t i = 0; i < g.n; ++i) {
-        s.lst[i] = target - tail[i];
-        // Earliest deadline first; ties: earlier in the incumbent schedule
-        s.rank[i] = static_cast<std::int64_t>(s.lst[i]) * 262144 + incumbent[i];
+        s.lst0[i] = target - tail[i];
+        s.rank[i] = incumbent[i]; // ties: earlier in the incumbent schedule first
     }
     s.step.assign(g.n, 0);
     s.est.assign(g.n, 1);
+    s.lst = s.lst0;
+    s.noise.assign(g.n, 0);
     s.remaining = g.n;
+    std::mt19937_64 rng(o.seed);
     DfsResult r;
-    bool const found = s.propagate(0) && s.search_step(1);
-    r.nodes = std::min(s.nodes, node_limit);
-    if (found) r.step = std::move(s.step);
-    else r.infeasible = s.nodes <= node_limit;
+    // Restart 0: the plain order (exhausting it proves the target infeasible); later ones: a
+    // perturbed order (deadline plus up to 4 steps of noise), at most restart_nodes nodes each.
+    for (std::int64_t it = 0; s.cost < o.cost_limit; ++it) {
+        s.step.assign(g.n, 0);
+        s.remaining = g.n;
+        if (it > 0) {
+            static constexpr std::int64_t amps[] = {512, 1024, 2048, 4096};
+            auto const amp = static_cast<std::uint64_t>(amps[rng() % 4]);
+            for (auto &x : s.noise) x = static_cast<std::int64_t>(rng() % amp);
+        }
+        s.nodes = 0;
+        s.node_limit = it == 0 ? std::int64_t{1} << 62 : o.restart_nodes;
+        s.cost_cap = it == 0 ? static_cast<std::int64_t>(o.first_share * static_cast<double>(o.cost_limit))
+                             : o.cost_limit;
+        ++r.restarts;
+        if (s.propagate(0) && s.search_step(1)) {
+            r.step = std::move(s.step);
+            break;
+        }
+        if (it == 0 && s.nodes <= s.node_limit) { // the whole tree, without a solution
+            r.infeasible = true;
+            break;
+        }
+    }
+    r.cost = s.cost;
     return r;
 }
 
@@ -582,20 +694,48 @@ void local_search(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget
 void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
                       Clock const &clock, double deadline_elapsed, std::int64_t &work) {
     if (g.n == 0 || r.latency <= r.lower_bound) return;
-    // Phase 1 (20%): depth-first search for latency - 1, repeated while it succeeds. Only for
-    // n <= 5000: the recursion depth is about n + latency. A search node costs about n / 4 units.
+    // Phase 1 (20%): search for latency - 1 (target_dfs), repeated while it succeeds. In
+    // chunks of 1/8 of the phase, alternately on the problem and on its mirror (they fail in
+    // different places: the forward search where a kind starves near the end, the mirror one
+    // near the start). Only for n <= 5000: the recursion depth is about n + latency.
     constexpr double dfs_share = 0.2, restart_share = 0.3;
+    constexpr std::int64_t cost_per_unit = 75; // target_dfs cost units per work unit (~50 ns)
+    constexpr std::int64_t chunks = 8;
     auto const dfs_budget = static_cast<std::int64_t>(static_cast<double>(work_budget) * dfs_share);
     if (g.n <= 5000) {
-        auto const nodes = dfs_budget * 4 / pass_work(g);
+        auto const total = dfs_budget * cost_per_unit;
+        auto const mirror = reversed(g);
+        std::vector<std::int32_t> mirror_tail(g.n), mirror_incumbent(g.n);
+        for (std::int32_t i = 0; i < g.n; ++i) mirror_tail[g.n - 1 - i] = r.head[i] - 1;
         std::int64_t used = 0;
-        while (r.latency > r.lower_bound && used < nodes && clock.elapsed() < deadline_elapsed) {
-            auto const d = target_dfs(g, r.tail, r.step, r.latency - 1, nodes - used);
-            used += d.nodes;
-            if (d.infeasible) r.lower_bound = r.latency; // exhausted: latency - 1 is impossible
-            if (d.step.empty()) break;
-            r.step = d.step;
-            r.latency = latency_of(d.step);
+        std::uint64_t chunk = 0; // within the current target
+        std::int32_t chunk_target = 0;
+        while (r.latency > r.lower_bound && used < total && clock.elapsed() < deadline_elapsed) {
+            auto const target = r.latency - 1;
+            if (target != chunk_target) chunk_target = target, chunk = 0;
+            bool const on_mirror = chunk % 2 == 1;
+            DfsOptions o;
+            o.cost_limit = std::min(total - used, std::max<std::int64_t>(1, total / chunks));
+            o.first_share = chunk < 2 ? 0.3 : 0.0; // the unperturbed search once per direction
+            o.seed = 0x9e3779b97f4a7c15ULL * (chunk + 1) + static_cast<std::uint64_t>(target);
+            ++chunk;
+            DfsResult d;
+            if (on_mirror) {
+                for (std::int32_t i = 0; i < g.n; ++i)
+                    mirror_incumbent[g.n - 1 - i] = r.latency + 1 - r.step[i];
+                d = target_dfs(mirror, mirror_tail, mirror_incumbent, target, o);
+                if (!d.step.empty()) d.step = mirror_steps(d.step);
+            } else {
+                d = target_dfs(g, r.tail, r.step, target, o);
+            }
+            used += d.cost;
+            if (d.infeasible) {
+                r.lower_bound = r.latency; // exhausted: latency - 1 is impossible
+                break;
+            }
+            if (d.step.empty()) continue;
+            r.step = std::move(d.step);
+            r.latency = latency_of(r.step);
         }
     }
     work += dfs_budget;
