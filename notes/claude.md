@@ -212,3 +212,34 @@ mirror 得 `idle_tail`；`L ≥ ceil((N_b+idle_head+idle_tail)/c_b)`（需 T+T' 
 ASan 在本機連結不起來（缺 runtime），只用 UBSan-trap＋`_GLIBCXX_ASSERTIONS` 測到 2 萬 ops；heap 錯誤未驗證。
 發現：(1) `dense 3000 50`:1,1,1 `-e` 1546 > `-h` 1545（已由 91cf561 結構性修掉：兩者 1544）；(2) 同 case `-e` 2.69 GB（已加 nonzero 上限，45 MB）；
 (3) 限制 2147483647 被拒（上限 1e9）——待修；(4) 目錄當 BLIF 會輸出 LATENCY 0——待修；(5) `tools/check.py` 平方時間——已修（2e119fa）。
+
+## 階段 6：目標 latency 搜尋加時間窗 propagation；輸入修正；差異測資
+
+### 輸入修正與回歸（sonnet subagent；b070573、8731845、c2d5487）
+- 資源限制接受到 2147483647（讀完 BLIF 後夾到 `max(1, 該 kind 的 op 數)`，不影響結果）；目錄當 BLIF、`--time inf/nan` 為乾淨錯誤。空檔案仍輸出 `LATENCY: 0`。
+- 壓力測試重跑（含 1e6 ops）：191 列無 crash／逾時，無 `-e` > `-h`；`-h` 最長 8.43 s、RSS 最大 515 MB。
+- 預設 suite `-e`（b070573）：76 全 OK，72 證明（69 bound + 3 optimal），big2 ×4 too_large，最大 52.03 s。
+
+### heuristic 第二輪（opus subagent；7aa53af、df7554f；評估列 dc98e0e）
+診斷 `layered_s129_n252:5,3,2`（AND 123/5、OR 75/3、NOT 54/2，深度 21，最佳 30）：NOT 最緊，30 step 內 NOT 只能閒置 6 個 slot，
+heuristic 解閒置 8 個；head/tail 時間窗 slack 全 ≥2（沒有 op 被固定）。舊 DFS 24 萬節點最深只到 step 11，失敗根源在 step 1–4：
+固定最佳解前 4 step 後 4,901 節點就解出，只固定前 2 step 則 3 萬節點解不出 ⇒ propagation 太弱＋chronological backtracking 回不到早期選擇。
+- 採用：每個 open op 維護 `[est, lst]`，precedence 雙向＋每個 kind 的 Hall 區間檢查（過滿即失敗；剛好滿時把其他 op 推出區間）推到 fixpoint；
+  **隨機重啟**（重啟 0 不加擾動、完整搜尋，走完無解仍是 L−1 不可行的證明；之後每次擾動分支順序、上限 1000 節點）；**forward／mirror 交替**。
+  預算切法：第一段 forward 佔 DFS 階段的 40%，之後每段 1/8。總預算、seed、確定性不變。
+- 負結果：LDS（discrepancy 0–5）；祖先／後代數量推 est/lst（無效且慢 6 倍）；從最深 prefix 或 incumbent prefix 重啟；
+  每決定一個 kind 就 propagate；調 DFS 佔比（0.2/0.35/0.4 相同）。DFS 佔 90%＋預算 ×4 只多解出 layered_s1006 ⇒ 其餘在現行預算下無望。
+- soundness 修正：lst 變成動態後，backtrack 會殘留較深節點的值 ⇒ 同一 step 的選擇改用該 step 開始時的 lst 快照。
+- 結果（df7554f，全部 checker OK，無退步）：
+  - 難測資 `-h` 幾何平均 1.00229 → **1.00145**，46/50 等於 best（新解 layered_s129 30、chains_s575 112——後者只能從 mirror 方向解）。
+    時間中位數 2.8 s、p90 9.9 s、最大 10.6 s（原 16.1 s）。
+  - 預設 suite `-h`：latency 不變；等於自己 LB 的 69 → **71**（C1355:2,2,1 在 0.7 s 證出 179、i8:8,8,4 在 1.0 s 證出 95——不需要 Gurobi）；最大 8.9 s。
+  - 驗證集（30 個新生成的 layered，200–2000 ops）：latency 總和 1599 → 1598（改善 1、變差 0），6 個新證明 L−1 不可行。提升很小 ⇒ 沒有過度擬合，但也代表方法只對特定結構有效。
+  - 確定性：4 個 case 閒置 ×2＋負載 ×1 逐位元相同；負載下 chains_s575 29.3 s，貼著 30 s 保險。
+- 仍未解：layered_s1076 48/47、s1006 49/48、s557 63/62、s554 68/67。forward 卡在後段某 kind 供料不足（s1076：OR 在 [29,47] 需要 156 slot 只有 152），
+  mirror 卡在前段。需要跨 kind 的推理（「kind k 要在 a 之前完成 D 個 op，需要多少祖先產能」）。
+
+### 差異測資
+- `benchmark/claude_gap2.blif`（53 ops funnel，2,4,1；b070573 時 `-h` 11、`-e` 10）在 df7554f 又被 `-h` 解掉（10）。
+  搜尋統計（b070573）：約 6.3 萬組候選，20–39 ops 約 1.7 萬組沒有任何 `-e` < `-h`；`-e` 贏的只有 10 組。
+- heuristic 每變強一次，差異測資就失效一次；最終版的差異測資必須在 heuristic 凍結後重新搜尋（進行中）。
