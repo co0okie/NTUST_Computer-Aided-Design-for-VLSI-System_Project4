@@ -69,7 +69,7 @@ def build_cases(big):
     C.append(case("absent_zero", "onekind AND 100 100", "2,0,0", "h", hint=10000))
     C.append(case("absent_zero_ok_and_zero", "onekind AND 100 100", "0,2,2", "h", expect="err", hint=10000))
     # 2. limits
-    for lim in ["1,1,1", "1000000,1000000,1000000", "2147483647,2147483647,2147483647", "1,1000,1000", "1000,1,1", "1000,1,1000", "1,1,1000"]:
+    for lim in ["1,1,1", "1000000,1000000,1000000", "2147483647,2147483647,2147483647", "2147483647,1,1", "1,1000,1000", "1000,1,1", "1000,1,1000", "1,1,1000"]:
         C.append(case("limits_layered_100x100", "layered 100 100", lim, "he" if lim in ("1000000,1000000,1000000", "1,1000,1000") else "h", hint=10000))
     for lim in ["2147483647,2147483647,2147483647", "1,1,1"]:
         C.append(case("limits_tiny", "tiny", lim, "he"))
@@ -88,15 +88,15 @@ def build_cases(big):
         ("empty_string_file", ["", "2", "2", "2"]),
     ]:
         C.append(case(f"args_{tag}", "tiny", "2,2,2", "he" if tag in ("opt_time_0", "opt_threads_neg", "opt_keep_missing_dir") else "h", expect="err", args=args))
-    C.append(case("args_time0_valid", "layered 100 100", "3,3,3", "e", args=base + ["--time", "0"], hint=10000))
+    C.append(case("args_time0_rejected", "layered 100 100", "3,3,3", "e", expect="err", args=base + ["--time", "0"], hint=10000))
     C.append(case("args_time1_valid", "layered 100 100", "3,3,3", "e", args=base + ["--time", "1"], hint=10000))
     for tag in ["bad_mode"]:
         C.append(case("args_bad_mode", "tiny", "2,2,2", "x", expect="err", args=["-x"] + base))
     # 3. oddities
     odd_ok = ["continuation", "comments", "crlf", "tabs", "nonl", "noend", "nomodel", "pi_out", "nogates", "dupfanin_and",
-              "dupfanin_or", "longname", "oddchars", "unicode", "reverse", "out_fanin", "dangling", "dup_input", "dup_output",
+              "dupfanin_or", "longname", "oddchars", "unicode", "reverse", "out_fanin", "dangling", "dup_output",
               "multi_model", "huge_line"]
-    odd_maybe = ["const1", "const0", "const_out", "empty_names", "buffer", "buffer_out", "dupfanin_not", "xor", "offset",
+    odd_maybe = ["dup_input", "const1", "const0", "const_out", "empty_names", "buffer", "buffer_out", "dupfanin_not", "xor", "offset",
                  "nand_cube", "bad_row", "latch", "pi_redef"]
     odd_err = ["loop", "selfloop", "undefined", "undef_out", "redefine", "empty", "garbage", "only_ws", "dangling_backslash"]
     e_set = {"crlf", "dupfanin_and", "dangling", "reverse", "pi_out", "nogates", "out_fanin", "longname", "buffer", "const1"}
