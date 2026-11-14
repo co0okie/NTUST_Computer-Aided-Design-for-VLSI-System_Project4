@@ -257,3 +257,25 @@ heuristic 解閒置 8 個；head/tail 時間窗 slack 全 ≥2（沒有 op 被�
 - 預設 suite `-e`：76 全 OK，72 證明，big2 ×4 too_large（7517/7512、3761/3758、2514/2508、946/945），最大 52.05 s。
 - 難測資 `-e`：50 全 OK，40 證明（階段 4 是 39；新增 layered_s557 62 optimal）；只有 layered_s554（68 vs best 67）高於 best，最大 53.16 s。
 - 壓力測試（含 1e6 ops）：191 列，無非預期結果；`-h` 最長 8.11 s、RSS 515 MB、`-e` 最長 52.10 s，無 `-e` > `-h`。
+
+## 階段 7：目標搜尋的 failed-state memo（修掉對 b070573 的退步）；跨 kind 推理為負結果
+
+opus subagent；程式 b4c6427，評估列 69212d7（note=`stage7: ...`）。
+- 退步原因：不是 propagation 變弱，而是預算——df7554f 的 restart 0 只拿 DFS 階段的 40%，b070573 整段用於一次完整搜尋。
+  3 個 LB 退步的 case 新版只差幾千節點就走完（其中 2 個節點數與舊版完全相同 ⇒ Hall propagation 在那裡一個節點也沒剪）。
+- 修正：**failed-state memo**。決定完 step 1..t 後，子問題只取決於（t，已排集合 S）；子樹完整搜完無解 ⇒（t′≥t，S）不可行。
+  S 以兩個 64-bit Zobrist hash 為 key（open addressing，上限 2^21 格，約 50 MB／方向），forward、mirror 各一張，同一 target 的所有 chunk／restart 共用；
+  被節點上限截斷的子樹不記錄。效果：`gap seed=946646`:2,1,2 從 7.7 萬節點走不完變成 427 節點證完；claude_gap3 第一段就找到 24。
+  （hash 碰撞理論上會造成錯誤剪枝，128 bit 下機率可忽略。）
+- 4 個退步 case 全部回到與 b070573 相同（24/24、20/20、15/15、17/17）。
+- 評估：難測資 `-h` 幾何平均不變 1.00145（46/50），LB 提高 4 個（chains_s1107 58→60、chains_s1108 109→110、funnel_s1182 148→149、layered_s129 28→30），最大 10.64 s；
+  預設 suite `-h` 完全不變（71/76 等於 LB，最大 8.99 s）；`-e` 回歸 4 個 OK。
+  LB 正確性：3,290 個 case（290 個有參考最佳解）無高估、無 checker 失敗；對 df7554f：latency 好 1 差 0，LB 高 77 低 0。確定性 3 個 case 逐位元相同。
+  驗證集（30 layered）：1598 → 1598，LB 提高 2。
+- **負結果（4 個 open layered case 全無變化：s1076 48/47、s1006 49/48、s557 63/62、s554 68/67）**：
+  - 診斷 s1076：OR 是瓶頸，47 step 內只能閒置 19 格；heuristic 在 step 21–28 讓 OR 閒置 26 格，最佳解則刻意提早讓 AND／NOT 閒置來餵 OR。
+  - 跨 kind closure bound（Lagrangian max-closure／min-cut 估「step a 前最多完成幾個 kind-k op」，Python 原型）：LB 仍 45——relaxation 忽略祖先的時間結構，偵測不到中段缺料。
+  - DFS 分支加「餵瓶頸 kind」偏置（權重 0.5／1／2）；restart 節點上限 5k／30k；DFS 佔比 0.45；`--heffort 3`：全部不變。
+- big2 沒有處理（n > 5000 時 DFS 不啟動）。
+- **差異測資**：`benchmark/claude_gap3.blif` 又失效（`-h` 24＝`-e` 24）。目前已知有效的最小 case 是 `benchmark/hard/layered_s1076_n851.blif 8 8 6`
+  （`-h` 48、`-e` 47 optimal，18 s）；另有 layered_s1006:14,9,8（49/48）、layered_s557:12,16,7（63/62，`-e` 48.9 s 貼近時限）。
