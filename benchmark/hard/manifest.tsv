@@ -10,7 +10,7 @@ chains_s1108_n561:6,2,2	chains	chains seed=1108 chains=6 length=88 side=33 cross
 chains_s1101_n620:3,3,2	chains	chains seed=1101 chains=8 length=73 side=36 cross=26 period=6	620	76	238	244	138	96	91	90	82	open	55567d1
 chains_s1115_n994:6,5,1	chains	chains seed=1115 chains=10 length=85 side=144 cross=33 period=5	994	87	599	312	83	107	106	105	105	optimal	55567d1
 chains_s580_n1559:10,21,3	chains	chains seed=580 chains=14 length=87 side=341 cross=42 period=4	1559	90	596	696	267	98	97	97	97	optimal	55567d1
-chains_s579_n2453:16,9,3	chains	chains seed=579 chains=23 length=102 side=107 cross=43 period=6	2453	105	1128	957	368	128	127	127	124	open	55567d1
+chains_s579_n2453:16,9,3	chains	chains seed=579 chains=23 length=102 side=107 cross=43 period=6	2453	105	1128	957	368	128	127	126	124	open	55567d1
 chains_s575_n2879:12,15,6	chains	chains seed=575 chains=24 length=105 side=359 cross=21 period=5	2879	108	1173	1073	633	113	113	112	112	optimal	55567d1
 chains_s2005_n4600:10,18,6	chains	chains seed=2005 chains=25 length=160 side=600 cross=40 period=5	4600	162	1560	2123	917	178	177	177	167	open	55567d1
 funnel_s481_n88:2,4,1	funnel	funnel seed=481 feeders=41 stages=4 tail=10 overlap=3	88	15	30	58	0	20	19	19	19	optimal	55567d1

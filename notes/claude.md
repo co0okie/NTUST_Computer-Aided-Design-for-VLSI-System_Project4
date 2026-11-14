@@ -175,3 +175,40 @@ mirror 得 `idle_tail`；`L ≥ ceil((N_b+idle_head+idle_tail)/c_b)`（需 T+T' 
 - heuristic 在難測資上的 14 個差 1：local repair／sliding-window 重排（取代純 random restart）、CP 式時間窗傳播判定 L−1 不可行區段。
 - big2：比例式 unlock（一組 OR 解鎖幾個 AND）、lag-aware tail。
 - 穩健性壓力測試（超深、超寬、高 fanout、closure 超過 400 MB 的 fallback）尚未做。
+
+## 階段 5：deterministic `-h`（工作量預算）＋目標 latency DFS＋plateau 局部搜尋；穩健性壓力測試
+
+### 「72 → 68」不是退步
+55567d1 與 6111541 的 `-h` 在預設 suite 76 個 case 上 latency 完全相同。72 是「等於 best known」，68 是「等於自己算出的 LB」；
+差的 4 個（C1355 ×3、i8:8,8,4）是 LB 不緊，`-h` 已是 `-e` 證明過的最佳。但重啟次數原本由 wall clock 決定，負載下可能不同 ⇒ 改成 deterministic。
+
+### heuristic（opus subagent，commit 91cf561；評估列 7fe920a，note=`stage5: ...`）
+診斷：14 個差 1 的 case 有 12 個最佳＝LB，隨機重啟找不到「瓶頸完全不閒置」的解。
+- 捨棄：pilot/rollout（比 unlock 起點還差）；squeaky wheel（4 種 gain 都沒改進起始解）；DFS 加 restart／失敗加權（丟掉 funnel_s1210）；
+  祖先數量推 est（慢 4 倍無新解）；mirror DFS（無新解）。
+- 採用 1：**目標 latency 的 DFS**——固定 L−1，逐步選 op（只試把機器填滿的選法），每步用 precedence 推 est、每種 kind 各跑 EDF 檢查可行性。
+  解開 3 個 funnel（511／3.7k／62k 節點）；layered、chains 給 100 萬節點也解不開。搜尋走完無解 ⇒ **證明 L−1 不可行，LB 提高**
+  （C1355:3,2,2 在 0.37 s 得到 bound，原本要 Gurobi 37 s）。
+- 採用 2：**plateau 局部搜尋**——擾動目前排程的 step 順序＋2 輪 FBI，latency 不變差就接受（同 latency 的解之間隨機遊走），候選以 excess 分高下。
+  修好 chains ×3、funnel ×2、layered_s1008 ×2。（改成 excess 不變差才接受只修好 5 個。）
+- 保留舊的 random restart（30% 預算），否則 layered_s554 退步成 69。
+- 流程：初始排程（不變）→ DFS 20% → restart 30% → 局部搜尋。seed 固定。
+- **預算**：`min(2e8, 3e5 × ops)` 工作單位（本機約 50 ns／單位）；一次 list scheduling 計 n（密圖 `max(n, n/2+e/8)`），DFS 節點計 n/4。
+  wall clock 只當保險（heuristic 20 s、improve `min(30, time−20)`）。`--heffort F` 縮放預算，取代 `--htime`。
+- `-e` 先跑與 `-h` 完全相同的 heuristic 再進 ILP ⇒ `-e` ≤ `-h` 由結構保證。新增 `IlpOptions.max_nonzeros = 16M`（防 dense 模型吃 2.7 GB）。
+
+### 正式評估（commit 91cf561，全部 checker OK）
+- 難測資 `-h`：幾何平均 1.00459 → **1.00229**（以更新後的 best 計；44/50 等於 best）。修好 8 個；新紀錄 `chains_s579_n2453:16,9,3` 127→126（manifest 已更新）。
+  仍差 1：chains_s575 113/112、layered_s129 31/30、s1076 48/47、s1006 49/48、s557 63/62、s554 68/67。時間：中位數 2.9 s、p90 10.6 s、最大 16.1 s。
+- 預設 suite `-h`：無退步，69/76 等於 LB，最大 11.4 s。big2 新紀錄：7518→**7517**、3763→**3761**、2516→**2514**（8,8,4 仍 946）。
+- `-e` 回歸（9 個 case，≤52.1 s）：C1355:2,2,1 179 optimal（51.3 s，仍貼著時限）、3,2,2 141 bound 0.4 s、8,8,4 47 optimal 9.7 s、i8:8,8,4 95 optimal 23.8 s、
+  des:3,2,2 661 bound、layered_s129 30 optimal 6.1 s；layered_s1074 87、chains_s1101 90、big2:3,2,2 2514 未證明。每個都 `-e` ≤ `-h`。
+- 確定性：6 個 case 閒置兩次＋同核心 3 個忙迴圈一次，輸出逐位元組相同。**注意**：負載下 layered_s557 跑到 30.0 s 剛好碰到保險；
+  機器慢約 3 倍以上時保險會觸發，結果就不再保證相同（仍合法）。
+- 完整 76 case 的 `-e` 還沒在 91cf561 上重跑。
+
+### 穩健性壓力測試（sonnet subagent，對象 f275c81；`benchmark/stress/gen_stress.py`、`run_stress.py`、`fastcheck.py`）
+約 400 次執行：無 crash、無 checker 判錯、無逾時；`-h` 在 1e6 ops（chain／flat／tree／star／layered）1–1.7 s、RSS 310–515 MB。
+ASan 在本機連結不起來（缺 runtime），只用 UBSan-trap＋`_GLIBCXX_ASSERTIONS` 測到 2 萬 ops；heap 錯誤未驗證。
+發現：(1) `dense 3000 50`:1,1,1 `-e` 1546 > `-h` 1545（已由 91cf561 結構性修掉：兩者 1544）；(2) 同 case `-e` 2.69 GB（已加 nonzero 上限，45 MB）；
+(3) 限制 2147483647 被拒（上限 1e9）——待修；(4) 目錄當 BLIF 會輸出 LATENCY 0——待修；(5) `tools/check.py` 平方時間——已修（2e119fa）。
