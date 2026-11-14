@@ -47,6 +47,7 @@ with tempfile.TemporaryDirectory(prefix="order-check-", dir=SCRATCH) as tmp:
     directory = Path(tmp)
     log = directory / "order.tsv"
     ENV["MLRCS_ORDER_LOG"] = str(log)
+    ENV["MLRCS_ORDER_METHOD"] = "beam"
     rng = random.Random(247)
     for sample in range(16):
         operations = []

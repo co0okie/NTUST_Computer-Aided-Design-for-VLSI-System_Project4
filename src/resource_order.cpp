@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdlib>
+#include <fstream>
+#include <string>
 #include <limits>
 #include <numeric>
 #include <random>
@@ -152,7 +155,7 @@ bool useful(Lanes const &s, Move const &m) {
 }
 } // namespace
 
-OrderSearchStats improve_resource_order(OpGraph const &g, HeuristicResult &best,
+OrderSearchStats improve_resource_order_single(OpGraph const &g, HeuristicResult &best,
                                          Clock const &clock, double deadline_elapsed) {
     OrderSearchStats stats;
     stats.initial_latency = stats.final_latency = best.latency;
@@ -247,5 +250,181 @@ OrderSearchStats improve_resource_order(OpGraph const &g, HeuristicResult &best,
         }
     }
     stats.final_latency = best.latency;
+    return stats;
+}
+
+namespace {
+// Removing an operation only relaxes machine precedence. Its data edges remain.
+// Bridging its neighbors preserves their relative order in every reconstruction.
+void detach(Lanes &s, Id u) {
+    auto const p = s.prev[u], q = s.next[u];
+    if (p >= 0) s.next[p] = q;
+    if (q >= 0) s.prev[q] = p;
+    s.prev[u] = s.next[u] = s.lane[u] = -1;
+}
+
+void insert_after(Lanes &s, Id u, Id anchor, Id lane) {
+    Id q = -1;
+    if (anchor >= 0) q = s.next[anchor];
+    else {
+        for (Id v = 0; v < static_cast<Id>(s.lane.size()); ++v)
+            if (s.lane[v] == lane && s.prev[v] < 0) { q = v; break; }
+    }
+    s.lane[u] = lane;
+    s.prev[u] = anchor;
+    s.next[u] = q;
+    if (anchor >= 0) s.next[anchor] = u;
+    if (q >= 0) s.prev[q] = u;
+}
+
+// Pick one machine-edge endpoint on a randomly traced longest path. If that
+// path contains data edges only, no machine reordering can shorten the schedule.
+Id critical_endpoint(OpGraph const &g, Lanes const &s, Evaluation const &e,
+                     std::mt19937_64 &rng) {
+    std::vector<Id> sinks;
+    for (Id u = 0; u < g.n; ++u) if (e.step[u] == e.latency) sinks.push_back(u);
+    if (sinks.empty()) return -1;
+    auto u = sinks[rng() % sinks.size()];
+    std::vector<Id> endpoints, pred;
+    while (e.step[u] > 1) {
+        pred.clear();
+        for (auto const v : g.pred.row(u))
+            if (e.step[v] + 1 == e.step[u]) pred.push_back(v);
+        auto const p = s.prev[u];
+        if (p >= 0 && e.step[p] + 1 == e.step[u]) pred.push_back(p);
+        if (pred.empty()) break;
+        auto const v = pred[rng() % pred.size()];
+        if (v == p) {
+            endpoints.push_back(u);
+            endpoints.push_back(v);
+        }
+        u = v;
+    }
+    return endpoints.empty() ? -1 : endpoints[rng() % endpoints.size()];
+}
+
+struct BeamState {
+    Lanes lanes;
+    Id latency = 0;
+    std::int64_t pressure = 0;
+};
+
+bool beam_less(BeamState const &a, BeamState const &b) {
+    return a.latency != b.latency ? a.latency < b.latency : a.pressure < b.pressure;
+}
+} // namespace
+
+OrderSearchStats improve_resource_order(OpGraph const &g, HeuristicResult &best,
+                                         Clock const &clock, double deadline_elapsed) {
+    auto const *method = std::getenv("MLRCS_ORDER_METHOD");
+    if (!method || std::string(method) != "beam")
+        return improve_resource_order_single(g, best, clock, deadline_elapsed);
+    OrderSearchStats stats;
+    stats.initial_latency = stats.final_latency = best.latency;
+    if (g.n < 2 || best.latency <= best.lower_bound || clock.elapsed() >= deadline_elapsed)
+        return stats;
+    // Sixteen linear-sized lane states plus scratch; cap this pass to modest RAM.
+    constexpr std::uint64_t memory_limit = 96ULL * 1024 * 1024;
+    if (static_cast<std::uint64_t>(g.n) * 3 * sizeof(Id) * 36 > memory_limit)
+        return stats;
+    constexpr std::size_t beam_width = 16;
+    constexpr std::uint64_t work_limit = 1'500'000'000;
+    auto const cost = static_cast<std::uint64_t>(3) * g.n + g.succ.item.size();
+    std::uint64_t work = 0, destroys = 0, lowered = 0, completions = 0, expanded = 0;
+    std::mt19937_64 rng(0x94d049bb133111ebULL);
+    std::array<Id, OP_KINDS> base{}, lanes_count{};
+    Id lane_total = 0;
+    for (int k = 0; k < OP_KINDS; ++k) {
+        base[k] = lane_total;
+        lanes_count[k] = std::min(g.limit[k], g.count[k]);
+        lane_total += lanes_count[k];
+    }
+    auto const available = [&]() {
+        return work < work_limit && clock.elapsed() < deadline_elapsed;
+    };
+    auto const eval = [&](Lanes const &s, Evaluation &e, Id cutoff) {
+        work += cost;
+        ++stats.attempts;
+        auto const ok = evaluate(g, s, e, cutoff);
+        if (ok) ++stats.feasible;
+        return ok;
+    };
+    Evaluation partial, scratch;
+    while (best.latency > best.lower_bound && available()) {
+        ++destroys;
+        auto state = lanes_from_steps(g, best.step, &rng);
+        if (!eval(state, partial, best.latency)) break;
+        std::vector<Id> removed;
+        std::array<int, 4> const sizes{6, 10, 14, 24};
+        auto const maximum = std::min<Id>(g.n, sizes[(destroys - 1) % sizes.size()]);
+        while (static_cast<Id>(removed.size()) < maximum && available()) {
+            auto const u = critical_endpoint(g, state, partial, rng);
+            if (u < 0) break;
+            removed.push_back(u);
+            detach(state, u);
+            if (!eval(state, partial, best.latency)) break;
+            // Extra removals allow several resource orders to change jointly.
+            if (partial.latency < best.latency && removed.size() >= 6) break;
+        }
+        if (removed.empty() || partial.latency >= best.latency || !available()) continue;
+        ++lowered;
+        // Different rebuilding orders explore distinct beam prefixes, deterministically.
+        if (destroys % 3 == 0) std::shuffle(removed.begin(), removed.end(), rng);
+        else std::sort(removed.begin(), removed.end(), [&](Id a, Id b) {
+            return best.step[a] != best.step[b] ?
+                   (destroys % 3 == 1 ? best.step[a] < best.step[b] : best.step[a] > best.step[b]) : a < b;
+        });
+        std::vector<BeamState> beam;
+        beam.push_back({std::move(state), partial.latency, partial.pressure});
+        bool complete = true;
+        for (auto const u : removed) {
+            std::vector<BeamState> next;
+            auto const k = g.kind[u];
+            for (auto const &parent : beam) {
+                if (!available()) { complete = false; break; }
+                ++expanded;
+                // All positions in a bounded time window, plus each lane's ends.
+                std::vector<std::pair<Id, Id>> positions;
+                auto const radius = destroys % 2 ? 4 : 10;
+                for (Id v = 0; v < g.n; ++v) {
+                    if (parent.lanes.lane[v] < 0 || g.kind[v] != k) continue;
+                    if (std::abs(best.step[v] - best.step[u]) <= radius || parent.lanes.next[v] < 0)
+                        positions.push_back({v, parent.lanes.lane[v]});
+                }
+                for (Id lane = base[k]; lane < base[k] + lanes_count[k]; ++lane)
+                    positions.push_back({-1, lane});
+                std::shuffle(positions.begin(), positions.end(), rng);
+                for (auto const &[anchor, lane] : positions) {
+                    if (!available()) { complete = false; break; }
+                    auto candidate = parent.lanes;
+                    insert_after(candidate, u, anchor, lane);
+                    if (!eval(candidate, scratch, best.latency - 1)) continue;
+                    BeamState child{std::move(candidate), scratch.latency, scratch.pressure};
+                    auto const at = std::lower_bound(next.begin(), next.end(), child, beam_less);
+                    if (next.size() < beam_width || at != next.end()) {
+                        next.insert(at, std::move(child));
+                        if (next.size() > beam_width) next.pop_back();
+                    }
+                }
+                if (!complete) break;
+            }
+            beam = std::move(next);
+            if (!complete || beam.empty()) { complete = false; break; }
+        }
+        if (!complete || beam.empty()) continue;
+        ++completions;
+        if (eval(beam.front().lanes, scratch, best.latency - 1)) {
+            best.latency = scratch.latency;
+            best.step = scratch.step;
+            ++stats.accepted;
+        }
+    }
+    stats.final_latency = best.latency;
+    if (auto const *path = std::getenv("MLRCS_ORDER_LNS_LOG")) {
+        std::ofstream out(path, std::ios::app);
+        out << g.n << '\t' << stats.initial_latency << '\t' << stats.final_latency
+            << '\t' << destroys << '\t' << lowered << '\t' << expanded
+            << '\t' << completions << '\t' << work << '\n';
+    }
     return stats;
 }

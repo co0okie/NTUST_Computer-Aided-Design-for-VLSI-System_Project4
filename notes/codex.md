@@ -218,3 +218,11 @@ clean build14.5s，計時CPU4–7；未發生checker failure或60秒timeout。sa
 已審查當前shared/best.tsv，沒有任何strict latency/LB改善，因此保留其他路線的較強數值及來源。claude stage5另將chains_s579_n2453:16,9,3從127改126，若用本次收尾時的live best計算，stage1 geo為1.00462423838；這是分母改變，不是本階段排程退步，正式跨階段比較以固定分母為準。此stage只驗證heuristic，沒有新增最優證明。已讀claude最新stage5 Q10（91cf561）：deterministic工作量、目標DFS、plateau/FBI已有探索，後續避免重複。
 
 決定與未完成：此stage新增resource-order pass沒有latency收益；保留source及完整負結果供後續改進，不以runtime當優化目標，但後續不應把更多時間花在同一無效鄰域而沒有新假設。尚未完成新版本全預設76case評估、新有效h/e差異測資、ASan（系統缺libasan）及正式報告；沒有把它們寫成已完成。下一階段由主導者依claude stage5提出不同的heuristic假設，保留同次seed/final因果紀錄及固定工作量比較，正式eval保存schedule。
+
+## Hard stage2：critical-block destroy/reinsert beam，五case負結果
+
+Stage1於1df4212收尾。Stage2實作adaptive critical-path destroy及beam16重建，維持原seed，CPU4–7的五case全部check.py OK；31/72/35/113/48均沒有seed→final改善，11.89–16.81秒。前兩case能下降partial LB但beam未完成改善，後三case極少能打斷所有critical paths。沒有全50評估、沒有新的hard geo、best/LB沒有刷新。
+
+詳細推導、完整數據、正exact toy（8個獨立ops，2資源，8→4）、120小圖單調性與lane檢查、23CLI checker、來源hash與重現方式見notes/hard-order-stage2.md；五正式pilot列已入codex-results.tsv。Beam保留為MLRCS_ORDER_METHOD=beam研究開關，預設仍single，不採用零收益額外成本。已讀claude stage5/6，最新hard geo1.00145；本路線尚未以新增搜尋取得因果收益。
+
+下一階段可驗證single搜尋的選擇規則：雖允許best+1，現有全鄰域lexicographic greedy只要找到等長候選就拒絕真正退步；改為固定seed的annealing或first-admissible，是同路線的小修改。stage2本身到此收尾。

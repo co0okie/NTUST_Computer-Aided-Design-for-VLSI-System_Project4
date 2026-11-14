@@ -114,6 +114,39 @@ int main() {
                 }
             }
         }
+        // Partial machine relaxation: data edges always remain. Every insertion
+        // replaces a->b by a->u->b, preserving its transitive implication.
+        auto relaxed = s;
+        std::vector<Id> removed;
+        for (Id u = 0; u < n; ++u) if (rng() % 2 == 0) {
+            detach(relaxed, u);
+            removed.push_back(u);
+        }
+        Evaluation lower;
+        assert(evaluate(g, relaxed, lower, n));
+        auto previous = lower.latency;
+        for (auto const u : removed) {
+            // Test every same-kind reinsertion, including empty-lane heads.
+            auto const k = g.kind[u];
+            Id base = 0;
+            for (int j = 0; j < k; ++j) base += std::min(g.limit[j], g.count[j]);
+            for (Id anchor = -1; anchor < n; ++anchor) {
+                if (anchor >= 0 && (relaxed.lane[anchor] < 0 || g.kind[anchor] != k)) continue;
+                auto candidate = relaxed;
+                insert_after(candidate, u, anchor, anchor < 0 ? base : relaxed.lane[anchor]);
+                Evaluation added;
+                if (evaluate(g, candidate, added, n)) assert(added.latency >= previous);
+            }
+            // Reconstruct the original lane order, skipping still-removed nodes.
+            auto p = s.prev[u];
+            while (p >= 0 && relaxed.lane[p] < 0) p = s.prev[p];
+            insert_after(relaxed, u, p, s.lane[u]);
+            assert(evaluate(g, relaxed, lower, n));
+            assert(lower.latency >= previous);
+            previous = lower.latency;
+        }
+        assert(relaxed.prev == s.prev && relaxed.next == s.next && relaxed.lane == s.lane);
+        check_steps(g, lower);
         HeuristicResult best;
         best.step = seed;
         best.latency = n;
@@ -128,6 +161,21 @@ int main() {
         auto const stats = improve_resource_order(g, best, clock, -1.0);
         assert(stats.attempts == 0 && best.step == unchanged);
     }
+    // Known-solvable destroy/rebuild: eight independent operations initially
+    // serialized on one of two lanes. The exact optimum is ceil(8/2)=4.
+    g = graph(8, {}, {2, 0, 0});
+    HeuristicResult repair;
+    repair.step = {1, 2, 3, 4, 5, 6, 7, 8};
+    repair.latency = 8;
+    repair.lower_bound = 4;
+    Clock repair_clock;
+    setenv("MLRCS_ORDER_METHOD", "beam", 1);
+    auto const repair_stats = improve_resource_order(g, repair, repair_clock, 1.0);
+    unsetenv("MLRCS_ORDER_METHOD");
+    assert(repair.latency == 4 && repair_stats.accepted > 0);
+    e.step = repair.step;
+    e.latency = repair.latency;
+    check_steps(g, e);
     // Oversized resource capacities must allocate by operation count, not capacity.
     g = graph(3, {}, {INT_MAX, INT_MAX, INT_MAX});
     s = lanes_from_steps(g, {1, 1, 1});

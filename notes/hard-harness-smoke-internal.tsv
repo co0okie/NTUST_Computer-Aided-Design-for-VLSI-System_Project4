@@ -1,0 +1,2 @@
+model	and	or	not	seed_latency	final_latency	attempts	feasible	accepted	enabled	reason
+chains_s412_n80	3	2	1	18	18	0	0	0	1	bound

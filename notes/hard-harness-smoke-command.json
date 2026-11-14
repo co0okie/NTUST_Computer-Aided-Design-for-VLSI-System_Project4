@@ -1,0 +1,28 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "4-7",
+    "/usr/bin/python3",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/tools/eval.py",
+    "--src",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/hard-harness-smoke/source",
+    "--cpu",
+    "4-7",
+    "--mode",
+    "h",
+    "--timeout",
+    "60",
+    "--tsv",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/notes/hard-harness-smoke-results.tsv",
+    "--keep-outputs",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/hard-harness-smoke/outputs",
+    "--note",
+    "hard-harness-smoke source_sha256=493e06a76aed5d2d7ad5de3b2ec3ebb044c92a2e10be2145144fb1ccfd42ab16",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/hard/chains_s412_n80.blif:3,2,1"
+  ],
+  "environment": {
+    "TMPDIR": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex",
+    "MLRCS_ORDER_LOG": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/hard-harness-smoke/internal-raw.tsv"
+  }
+}

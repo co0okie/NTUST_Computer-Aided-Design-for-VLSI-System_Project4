@@ -21,6 +21,8 @@ CPUs 0-3, `codex` 4-7, anything else 8-11. Gurobi gets --threads (default 4) thr
 
 import argparse
 import datetime
+import hashlib
+import json
 import os
 import re
 import shutil
@@ -102,6 +104,21 @@ def run_case(binary, blif, limits, mode, args, work):
             code = None
     seconds = time.monotonic() - start
 
+    def preserve(row):
+        if not getattr(args, "keep_outputs", None):
+            return
+        label = re.sub(r"[^A-Za-z0-9_.-]", "_", blif.stem)
+        saved = args.keep_outputs / f"{args.output_index:04d}-{label}-{mode}"
+        saved.mkdir()
+        shutil.copy2(out_file, saved / "stdout.txt")
+        shutil.copy2(err_file, saved / "stderr.txt")
+        record = {"command": cmd, "blif": str(blif.resolve()), "limits": limits,
+                  "mode": mode, "returncode": code, "timeout": args.timeout,
+                  "elapsed_seconds": seconds, "result": row,
+                  "stdout_sha256": hashlib.sha256(out_file.read_bytes()).hexdigest(),
+                  "stderr_sha256": hashlib.sha256(err_file.read_bytes()).hexdigest()}
+        (saved / "run.json").write_text(json.dumps(record, indent=2) + "\n")
+
     row = {"latency": "", "lower_bound": "", "heuristic": "", "status": "", "time": f"{seconds:.2f}"}
     stderr = err_file.read_text(errors="replace")
     stats = re.search(r"^mlrcs-stats (.*)$", stderr, re.M)
@@ -111,9 +128,11 @@ def run_case(binary, blif, limits, mode, args, work):
             row[key] = kv.get(key, "")
     if code is None:
         row["check"] = "TIMEOUT"
+        preserve(row)
         return row
     if code != 0:
         row["check"] = "ERROR " + " ".join(stderr.strip().splitlines()[-1:])[:200]
+        preserve(row)
         return row
     c = subprocess.run([sys.executable, str(CHECK), str(blif), *map(str, limits), str(out_file),
                         "--mode", mode], capture_output=True, text=True)
@@ -123,6 +142,7 @@ def run_case(binary, blif, limits, mode, args, work):
         row["check"] = "OK"
     else:
         row["check"] = line[:200]
+    preserve(row)
     return row
 
 
@@ -136,6 +156,7 @@ def main():
     ap.add_argument("--cpu", help="taskset CPU list, or 'none' (default: by branch)")
     ap.add_argument("--threads", type=int, default=4, help="Gurobi threads (0: mlrcs default)")
     ap.add_argument("--timeout", type=float, default=60, help="seconds per run (default 60)")
+    ap.add_argument("--keep-outputs", help="retain per-run stdout/stderr/run.json in a new directory")
     ap.add_argument("--list", action="store_true", help="print the default suite and exit")
     args = ap.parse_args()
 
@@ -152,6 +173,10 @@ def main():
     if any(m not in ("h", "e") for m in modes):
         sys.exit("eval.py: --mode takes h, e or h,e")
     cases = [parse_case(c) for c in (args.cases or DEFAULT_SUITE)]
+    if args.keep_outputs:
+        args.keep_outputs = Path(args.keep_outputs).resolve()
+        args.keep_outputs.mkdir(parents=True, exist_ok=False)
+    args.output_index = 0
 
     commit = git(src, "rev-parse", "--short", "HEAD") or "-"
     if git(src, "status", "--porcelain", "--", "src", "CMakeLists.txt"):
@@ -173,6 +198,7 @@ def main():
     try:
         for blif, limits in cases:
             for mode in modes:
+                args.output_index += 1
                 row = run_case(binary, blif, limits, mode, args, work)
                 row.update(date=datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                            commit=commit, case=f"{blif.stem}:{','.join(map(str, limits))}",

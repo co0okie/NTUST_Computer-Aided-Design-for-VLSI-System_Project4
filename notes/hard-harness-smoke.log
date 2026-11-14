@@ -1,0 +1,3 @@
+# commit 6e2c6ab, build 14.5 s, cpu 4-7
+case	mode	latency	lower_bound	heuristic	status	time	check
+chains_s412_n80:3,2,1	h	18	18			0.00	OK

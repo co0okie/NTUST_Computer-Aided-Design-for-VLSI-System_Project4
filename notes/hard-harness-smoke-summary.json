@@ -1,0 +1,22 @@
+{
+  "source_sha256": "493e06a76aed5d2d7ad5de3b2ec3ebb044c92a2e10be2145144fb1ccfd42ab16",
+  "cases_expected": 1,
+  "rows": 1,
+  "complete": true,
+  "checker_ok": 1,
+  "retained_outputs_rechecked": 1,
+  "frozen_geomean": 1.0,
+  "same_run_seed_frozen_geomean": 1.0,
+  "live_geomean": 1.0,
+  "live_reference_sha256": "fab84d4c8b534479713c8b9a3bd18612ab154c57663f13cda1fc0fbc661ad343",
+  "equal_frozen_best": 1,
+  "same_run_improvements": 0,
+  "same_run_regressions": 0,
+  "total_seconds": 0.0,
+  "max_seconds": 0.0,
+  "build_seconds": 14.5,
+  "failures": [],
+  "strict_live_best_improvements": [],
+  "outputs": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/hard-harness-smoke/outputs",
+  "recheck_checker_sha256": "c3f6797b04a757598df4675d817ad1e3e15f7bbd9b1a2089f7b2954e4c57a3fb"
+}
