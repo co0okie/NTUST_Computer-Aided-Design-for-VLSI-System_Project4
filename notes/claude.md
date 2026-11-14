@@ -243,3 +243,17 @@ heuristic 解閒置 8 個；head/tail 時間窗 slack 全 ≥2（沒有 op 被�
 - `benchmark/claude_gap2.blif`（53 ops funnel，2,4,1；b070573 時 `-h` 11、`-e` 10）在 df7554f 又被 `-h` 解掉（10）。
   搜尋統計（b070573）：約 6.3 萬組候選，20–39 ops 約 1.7 萬組沒有任何 `-e` < `-h`；`-e` 贏的只有 10 組。
 - heuristic 每變強一次，差異測資就失效一次；最終版的差異測資必須在 heuristic 凍結後重新搜尋（進行中）。
+
+### 階段 6 驗證（sonnet subagent；df7554f 的快照；評估列 7aa7000，差異測資 407d1d4）
+- **新 LB 的正確性**：34,117 組小電路（10–900 ops，全 family，含 8.8k 組 1,1,1），以 b070573 的 `-e` 當獨立參考跑 290 次（全部 optimal/bound）：
+  沒有任何 `-h` LB 高於真實排程、沒有 checker 失敗。10–25 ops 的 12,792 組 `-h` 全部自己證明最佳。
+- **差異測資**：`benchmark/claude_gap3.blif`（layered，180 ops，深度 18，71 AND／72 OR／37 NOT），限制 4,3,2：`-h` 25（LB 24，2.0 s）、`-e` 24 optimal（2.7 s）。
+  重現：`python3 benchmark/hard/gen_hard.py layered seed=206796 layers=18 width=10 profile=uniform -o benchmark/claude_gap3.blif`（檔名會進 `.model`，要同名才逐位元相同）。
+  10–150 ops 的 33,413 組候選沒有任何差異 case；151–300 只掃了 553 組就找到這一個。`claude_gap2` 已移除。
+  注意：這個 case 上 b070573 的 `-h` 反而找得到 24——新搜尋在這裡比舊的 chronological DFS 差。
+- **新版比舊版弱的地方**（非 soundness）：除 gap3 的 latency 外，3 個 case 的 LB 少 1（舊 DFS 走完證明了 L−1 不可行，新版沒證出）：
+  `gap seed=946646 nops=84 nin=7`:2,1,2（19 vs 20）、`layered seed=466475 layers=13 width=11 profile=uniform`:6,7,3（14 vs 15）、
+  `layered seed=369341 layers=14 width=20 profile=hourglass`:4,6,5（16 vs 17）。⇒ 下一步：把舊的 chronological DFS 放回 portfolio。
+- 預設 suite `-e`：76 全 OK，72 證明，big2 ×4 too_large（7517/7512、3761/3758、2514/2508、946/945），最大 52.05 s。
+- 難測資 `-e`：50 全 OK，40 證明（階段 4 是 39；新增 layered_s557 62 optimal）；只有 layered_s554（68 vs best 67）高於 best，最大 53.16 s。
+- 壓力測試（含 1e6 ops）：191 列，無非預期結果；`-h` 最長 8.11 s、RSS 515 MB、`-e` 最長 52.10 s，無 `-e` > `-h`。
