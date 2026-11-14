@@ -24,6 +24,39 @@ std::vector<std::int32_t> unlock_schedule(OpGraph const &g, Closure const &closu
                                           std::vector<std::int64_t> const &key,
                                           UnlockOptions const &options);
 
+// Planned start ("ramp") for the bottleneck kind b. At the start the units of the other kinds
+// decide how soon b has work: a b op can run only after all its non-b ancestors. The plan is a
+// sequence of bundles, each the missing non-b ancestors of one b op; a bundle is chosen when a
+// unit of another kind would otherwise run an op outside the plan, by the ratio (b ops it
+// completes the non-b ancestors of) / (unit-steps it costs), randomly perturbed.
+//
+// RampData: the non-b ancestor sets of the b ops, grouped (identical sets share a group), for
+// the ops that can matter during the first `steps` steps. Empty (no groups) without a closure.
+struct RampData {
+    int bottleneck = 0;
+    std::int32_t steps = 0;
+    std::vector<std::int32_t> group_count;  // b ops per group
+    Csr group_items;                        // group -> its ops (non-b), sorted
+    Csr containing;                         // non-b op -> groups containing it
+};
+// `ancestors`: the closure of the mirror graph (the descendants of mirror op n-1-i are the
+// ancestors of op i).
+RampData make_ramp_data(OpGraph const &g, Closure const &ancestors, int bottleneck,
+                        std::int32_t steps, std::int32_t horizon);
+
+struct RampOptions {
+    std::int32_t horizon = 32;    // largest bundle considered (ops)
+    std::int32_t candidates = 64; // bundles considered per choice (the smallest)
+    double noise = 1;             // ratios are multiplied by 1 + noise * U[0, 1)
+    std::uint64_t seed = 1;
+};
+// List scheduling with priority `key` (larger first), except that during the first data.steps
+// steps the planned non-b ops run first (earlier bundles first). `work` grows by the elementary
+// operations of the bundle choices.
+std::vector<std::int32_t> ramp_schedule(OpGraph const &g, RampData const &data,
+                                        std::vector<std::int64_t> const &key,
+                                        RampOptions const &options, std::int64_t &work);
+
 struct HeuristicResult {
     std::vector<std::int32_t> step; // per op index
     std::int32_t latency = 0;

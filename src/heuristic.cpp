@@ -4,8 +4,10 @@
 #include <cstdio>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <queue>
 #include <random>
+#include <tuple>
 #include <utility>
 
 #include "bounds.hpp"
@@ -149,6 +151,184 @@ std::vector<std::int32_t> unlock_schedule(OpGraph const &g, Closure const &closu
                 }
             }
         }
+        remaining -= static_cast<std::int32_t>(chosen.size());
+    }
+    return step;
+}
+
+RampData make_ramp_data(OpGraph const &g, Closure const &ancestors, int bottleneck,
+                        std::int32_t steps, std::int32_t horizon) {
+    RampData d;
+    d.bottleneck = bottleneck;
+    d.steps = steps;
+    auto const n = g.n;
+    if (ancestors.empty()) return d;
+    // A b op whose non-b ancestors cannot all run within `steps` steps stays out
+    std::int64_t cap = horizon;
+    for (int k = 0; k < OP_KINDS; ++k)
+        if (k != bottleneck) cap += std::int64_t{g.limit[k]} * steps;
+    constexpr std::int64_t max_stored = 8'000'000; // ints, about 32 MB
+    std::map<std::vector<std::int32_t>, std::int32_t> group_of;
+    std::vector<std::vector<std::int32_t>> items;
+    std::vector<std::int32_t> set;
+    std::int64_t stored = 0;
+    auto const words = ancestors.words;
+    for (std::int32_t i = 0; i < n && stored < max_stored; ++i) {
+        if (g.kind[i] != bottleneck) continue;
+        set.clear();
+        auto const m = n - 1 - i;
+        auto const *const row = ancestors.row(m);
+        bool fits = true;
+        for (auto w = static_cast<std::int64_t>(m / 64); w < words && fits; ++w) {
+            for (auto bits = row[w]; bits != 0; bits &= bits - 1) {
+                auto const j = n - 1 - static_cast<std::int32_t>(w * 64 + __builtin_ctzll(bits));
+                if (g.kind[j] == bottleneck) continue;
+                set.push_back(j);
+                if (static_cast<std::int64_t>(set.size()) > cap) {
+                    fits = false;
+                    break;
+                }
+            }
+        }
+        if (!fits || set.empty()) continue;
+        std::sort(set.begin(), set.end());
+        auto const [it, fresh] = group_of.emplace(set, static_cast<std::int32_t>(items.size()));
+        if (fresh) {
+            stored += static_cast<std::int64_t>(set.size());
+            items.push_back(set);
+            d.group_count.push_back(0);
+        }
+        ++d.group_count[it->second];
+    }
+    auto const groups = static_cast<std::int32_t>(items.size());
+    d.group_items.offset.assign(groups + 1, 0);
+    d.containing.offset.assign(n + 1, 0);
+    for (std::int32_t q = 0; q < groups; ++q) {
+        d.group_items.offset[q + 1] = d.group_items.offset[q] + static_cast<std::int32_t>(items[q].size());
+        for (auto const x : items[q]) ++d.containing.offset[x + 1];
+    }
+    for (std::int32_t i = 0; i < n; ++i) d.containing.offset[i + 1] += d.containing.offset[i];
+    d.group_items.item.reserve(d.group_items.offset[groups]);
+    d.containing.item.resize(d.containing.offset[n]);
+    auto fill = d.containing.offset;
+    for (std::int32_t q = 0; q < groups; ++q) {
+        d.group_items.item.insert(d.group_items.item.end(), items[q].begin(), items[q].end());
+        for (auto const x : items[q]) d.containing.item[fill[x]++] = q;
+    }
+    return d;
+}
+
+std::vector<std::int32_t> ramp_schedule(OpGraph const &g, RampData const &d,
+                                        std::vector<std::int64_t> const &key,
+                                        RampOptions const &o, std::int64_t &work) {
+    auto const n = g.n;
+    auto const b = d.bottleneck;
+    auto const groups = static_cast<std::int32_t>(d.group_count.size());
+    std::vector<std::int32_t> missing(groups);
+    for (std::int32_t q = 0; q < groups; ++q)
+        missing[q] = static_cast<std::int32_t>(d.group_items.row(q).size());
+
+    using Entry = std::pair<std::int64_t, std::int32_t>;
+    using Planned = std::tuple<std::int32_t, std::int64_t, std::int32_t>; // (-bundle, key, -index)
+    std::array<std::priority_queue<Entry>, OP_KINDS> ready;
+    std::array<std::priority_queue<Planned>, OP_KINDS> planned_ready;
+    std::array<std::int32_t, OP_KINDS> planned_count{}; // planned, ready, not yet run
+    std::vector<std::int32_t> planned(n, 0);             // bundle number; -1: run unplanned
+    std::vector<std::int32_t> waiting(n), step(n, 0), hit(groups, 0), seen(groups, 0);
+    std::vector<std::int32_t> chosen, candidates;
+    std::int32_t stamp = 0, bundles = 0;
+    std::mt19937_64 rng(o.seed);
+    std::uniform_real_distribution<double> unit(0, 1);
+    auto const cover = [&](std::int32_t x) {
+        for (auto const q : d.containing.row(x)) --missing[q];
+    };
+    auto const make_ready = [&](std::int32_t i) {
+        ready[g.kind[i]].push({key[i], -i});
+        if (planned[i] > 0) planned_ready[g.kind[i]].push({-planned[i], key[i], -i}), ++planned_count[g.kind[i]];
+    };
+    for (std::int32_t i = 0; i < n; ++i) {
+        waiting[i] = static_cast<std::int32_t>(g.pred.row(i).size());
+        if (waiting[i] == 0) make_ready(i);
+    }
+    // Adds the best bundle that gives a unit of kind k work now; false when there is none
+    auto const add_bundle = [&](int k) {
+        candidates.clear();
+        for (std::int32_t q = 0; q < groups; ++q)
+            if (missing[q] > 0 && missing[q] <= o.horizon) candidates.push_back(q);
+        work += groups / 8 + 1;
+        auto const take = std::min<std::size_t>(candidates.size(), static_cast<std::size_t>(o.candidates));
+        std::partial_sort(candidates.begin(), candidates.begin() + static_cast<std::ptrdiff_t>(take),
+                          candidates.end(), [&](std::int32_t x, std::int32_t y) {
+                              return missing[x] != missing[y] ? missing[x] < missing[y] : x < y;
+                          });
+        double best_ratio = -1;
+        std::int32_t best = -1;
+        for (std::size_t c = 0; c < take; ++c) {
+            auto const q = candidates[c];
+            auto const items = d.group_items.row(q);
+            bool useful = false;
+            for (auto const x : items)
+                useful = useful || (planned[x] == 0 && g.kind[x] == k && waiting[x] == 0);
+            if (!useful) continue;
+            ++stamp;
+            double cost = 0;
+            std::int64_t gain = 0;
+            for (auto const x : items) {
+                if (planned[x] != 0) continue;
+                cost += 1.0 / g.limit[g.kind[x]];
+                auto const in = d.containing.row(x);
+                work += static_cast<std::int64_t>(in.size()) / 8 + 1;
+                for (auto const p : in) {
+                    if (seen[p] != stamp) seen[p] = stamp, hit[p] = 0;
+                    if (++hit[p] == missing[p]) gain += d.group_count[p];
+                }
+            }
+            auto const ratio = static_cast<double>(gain) / cost * (1 + o.noise * unit(rng));
+            if (ratio > best_ratio) best_ratio = ratio, best = q;
+        }
+        if (best < 0) return false;
+        ++bundles;
+        for (auto const x : d.group_items.row(best)) {
+            if (planned[x] != 0) continue;
+            planned[x] = bundles;
+            cover(x);
+            if (waiting[x] == 0 && step[x] == 0)
+                planned_ready[g.kind[x]].push({-bundles, key[x], -x}), ++planned_count[g.kind[x]];
+        }
+        return true;
+    };
+
+    auto remaining = n;
+    for (std::int32_t t = 1; remaining > 0; ++t) {
+        chosen.clear();
+        for (int k = 0; k < OP_KINDS; ++k) {
+            std::int32_t used = 0;
+            if (k != b) {
+                if (t <= d.steps)
+                    while (planned_count[k] < g.limit[k] && add_bundle(k)) {
+                    }
+                while (used < g.limit[k] && !planned_ready[k].empty()) {
+                    auto const i = -std::get<2>(planned_ready[k].top());
+                    planned_ready[k].pop();
+                    --planned_count[k];
+                    step[i] = t;
+                    chosen.push_back(i);
+                    ++used;
+                }
+            }
+            while (used < g.limit[k] && !ready[k].empty()) {
+                auto const i = -ready[k].top().second;
+                ready[k].pop();
+                if (step[i] != 0) continue; // ran as planned
+                step[i] = t;
+                chosen.push_back(i);
+                ++used;
+                if (planned[i] == 0 && k != b && t <= d.steps) planned[i] = -1, cover(i);
+            }
+        }
+        for (auto const i : chosen)
+            for (auto const j : g.succ.row(i))
+                if (--waiting[j] == 0) make_ready(j);
         remaining -= static_cast<std::int32_t>(chosen.size());
     }
     return step;
@@ -753,6 +933,74 @@ void local_search(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget
     }
 }
 
+namespace {
+
+// Randomized planned starts (ramp_schedule) for the bottleneck kind, the rest in the order of
+// the best schedule so far, each followed by two forward-backward rounds; moves to the result
+// when its (latency, excess) is better. Stops like local_search.
+void ramp_search(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
+                 std::int64_t &work, std::uint64_t seed, Clock const &clock,
+                 double deadline_elapsed) {
+    if (g.n == 0 || r.latency <= r.lower_bound || work >= work_budget) return;
+    auto const mirror = reversed(g);
+    auto const ancestors = descendants(mirror);
+    if (ancestors.empty()) return;
+    int bottleneck = 0;
+    std::int64_t load = -1;
+    for (int k = 0; k < OP_KINDS; ++k) {
+        if (g.count[k] == 0) continue;
+        auto const l = (static_cast<std::int64_t>(g.count[k]) + g.limit[k] - 1) / g.limit[k];
+        if (l > load) load = l, bottleneck = k;
+    }
+    RampOptions o;
+    constexpr std::int32_t ramp_steps = 64;
+    auto const data = make_ramp_data(g, ancestors, bottleneck, ramp_steps, o.horizon);
+    work += pass_work(g) * (1 + ancestors.words / 4);
+    if (data.group_count.empty()) return;
+    std::vector<std::int32_t> mtail(g.n);
+    for (std::int32_t i = 0; i < g.n; ++i) mtail[g.n - 1 - i] = r.head[i] - 1;
+    std::vector<std::int64_t> key(g.n);
+    auto const measure = [&](std::vector<std::int32_t> const &s) {
+        return schedule_measure(s, r.tail, r.latency - 1);
+    };
+    auto current = measure(r.step);
+    for (std::uint64_t trial = 0; work < work_budget && r.latency > r.lower_bound &&
+                                  clock.elapsed() < deadline_elapsed;
+         ++trial) {
+        auto const big = static_cast<std::int64_t>(g.n) + r.latency + 2;
+        for (std::int32_t i = 0; i < g.n; ++i)
+            key[i] = static_cast<std::int64_t>(r.latency + 1 - r.step[i]) * big + r.tail[i];
+        o.seed = seed + trial;
+        auto s = ramp_schedule(g, data, key, o, work);
+        work += 6 * pass_work(g);
+        auto best = s;
+        auto best_m = measure(s);
+        for (int round = 0; round < 2; ++round) {
+            auto const lc = latency_of(s);
+            auto const w = static_cast<std::int64_t>(g.n) + lc + 2;
+            for (std::int32_t i = 0; i < g.n; ++i)
+                key[g.n - 1 - i] = static_cast<std::int64_t>(s[i]) * w + mtail[g.n - 1 - i];
+            auto const back = mirror_steps(list_schedule(mirror, key));
+            auto const lb = latency_of(back);
+            auto const wb = static_cast<std::int64_t>(g.n) + lb + 2;
+            for (std::int32_t i = 0; i < g.n; ++i)
+                key[i] = static_cast<std::int64_t>(lb + 1 - back[i]) * wb + r.tail[i];
+            s = list_schedule(g, key);
+            auto const mb = measure(back);
+            if (mb < best_m) best_m = mb, best = back;
+            auto const ms = measure(s);
+            if (ms < best_m) best_m = ms, best = s;
+        }
+        if (best_m < current) {
+            r.latency = best_m.first;
+            r.step = std::move(best);
+            current = measure(r.step); // the target may have moved with the latency
+        }
+    }
+}
+
+} // namespace
+
 void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_budget,
                       Clock const &clock, double deadline_elapsed, std::int64_t &work) {
     if (g.n == 0 || r.latency <= r.lower_bound) return;
@@ -809,5 +1057,11 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_bu
     // Phase 2 (30%): randomized restarts; phase 3 (the rest): local search from the best
     auto const restart_budget = work + static_cast<std::int64_t>(static_cast<double>(work_budget) * restart_share);
     restart_schedule(g, r, restart_budget, work, 0x9e3779b97f4a7c15ULL, clock, deadline_elapsed);
+    // Graphs too large for the target search: planned starts with its share instead
+    if (g.n > 5000) {
+        work -= dfs_budget;
+        ramp_search(g, r, work + dfs_budget, work, 0x7a3b5c1d2e4f6a8bULL, clock, deadline_elapsed);
+        work = std::max(work, restart_budget);
+    }
     local_search(g, r, work_budget, work, 0x5eed1234abcdULL, clock, deadline_elapsed);
 }
