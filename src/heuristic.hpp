@@ -58,9 +58,27 @@ struct DfsResult {
     std::int64_t cost = 0;
     std::int64_t restarts = 0;
 };
+// Failed search states, shared by the target_dfs calls on one graph: after steps 1..t are
+// decided, what remains depends only on t and the set S of decided ops (all finished by t + 1),
+// so a subtree searched completely without a solution proves (t', S) hopeless for every
+// t' >= t. S is keyed by two 64-bit Zobrist hashes (a false match has probability ~2^-128 per
+// lookup). Entries are valid for one target only; target_dfs clears them when it changes.
+struct DfsMemo {
+    struct Entry {
+        std::uint64_t a = 0, b = 0;
+        std::int32_t t = 0; // 0: empty slot
+    };
+    std::int32_t target = 0;
+    std::vector<std::uint64_t> zob_a, zob_b;
+    std::vector<Entry> table; // open addressing, size a power of two (empty: no memo)
+    std::size_t count = 0;
+};
+// A table of at least `states` slots (power of two, at most 2^21)
+DfsMemo make_dfs_memo(std::int64_t states);
+
 DfsResult target_dfs(OpGraph const &g, std::vector<std::int32_t> const &tail,
                      std::vector<std::int32_t> const &incumbent, std::int32_t target,
-                     DfsOptions const &options);
+                     DfsOptions const &options, DfsMemo &memo);
 
 // Iterated local search (seeded): perturb the priorities of the current schedule, two
 // forward-backward rounds, move to the result if its latency is not worse. Same stopping rules

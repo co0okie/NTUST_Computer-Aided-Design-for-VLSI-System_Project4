@@ -398,7 +398,7 @@ std::pair<std::int32_t, std::int64_t> schedule_measure(std::vector<std::int32_t>
 // Search state for target_dfs: steps are decided in order 1, 2, ...; every open op keeps a
 // window [est, lst] of the steps it can still take if the target is to be met.
 struct TargetDfs {
-    explicit TargetDfs(OpGraph const &graph) : g(graph) {}
+    TargetDfs(OpGraph const &graph, DfsMemo &m) : g(graph), memo(m) {}
 
     OpGraph const &g;
     std::int32_t target = 0;
@@ -411,6 +411,43 @@ struct TargetDfs {
     std::int64_t nodes = 0, node_limit = 0;
     std::int64_t cost = 0;     // elementary operations, for the work accounting
     std::int64_t cost_cap = 0; // stop the current restart beyond this cost
+    // Failed states (see DfsMemo)
+    DfsMemo &memo;
+    std::uint64_t hash_a = 0, hash_b = 0;
+
+    std::size_t slot(std::uint64_t a) const {
+        return static_cast<std::size_t>(a) & (memo.table.size() - 1);
+    }
+    bool known_failed(std::int32_t t) const {
+        if (memo.table.empty()) return false;
+        for (auto q = slot(hash_a);; q = (q + 1) & (memo.table.size() - 1)) {
+            auto const &f = memo.table[q];
+            if (f.t == 0) return false;
+            if (f.a == hash_a && f.b == hash_b) return f.t <= t;
+        }
+    }
+    void record_failed(std::int32_t t) {
+        auto &table = memo.table;
+        if (table.empty() || memo.count * 4 >= table.size() * 3) return; // full: stop recording
+        for (auto q = slot(hash_a);; q = (q + 1) & (table.size() - 1)) {
+            auto &f = table[q];
+            if (f.t == 0) {
+                f = {hash_a, hash_b, t};
+                ++memo.count;
+                return;
+            }
+            if (f.a == hash_a && f.b == hash_b) {
+                f.t = std::min(f.t, t);
+                return;
+            }
+        }
+    }
+    void set_step(std::int32_t x, std::int32_t t) {
+        step[x] = t;
+        hash_a ^= memo.zob_a[static_cast<std::size_t>(x)];
+        hash_b ^= memo.zob_b[static_cast<std::size_t>(x)];
+    }
+
     // Scratch
     std::vector<std::int32_t> raw, last_b, first_a, bucket_lst;
     std::vector<std::size_t> bucket_start, fill;
@@ -560,7 +597,11 @@ struct TargetDfs {
                 nodes = node_limit + 1; // cut off: not exhausted
                 return false;
             }
-            return propagate(t) && search_step(t + 1);
+            cost += 8;
+            if (known_failed(t)) return false;
+            if (propagate(t) && search_step(t + 1)) return true;
+            if (nodes <= node_limit) record_failed(t);
+            return false;
         }
         auto const &list = c[k];
         if (capacity == 0 || pos == list.size()) {
@@ -569,10 +610,10 @@ struct TargetDfs {
             return choose(t, c, due, k + 1, 0, k + 1 < OP_KINDS ? g.limit[k + 1] : 0);
         }
         auto const x = list[pos];
-        step[x] = t;
+        set_step(x, t);
         --remaining;
         if (choose(t, c, due, k, pos + 1, capacity - 1)) return true;
-        step[x] = 0;
+        set_step(x, 0);
         ++remaining;
         if (nodes > node_limit) return false;
         if (due[k][pos] > t && list.size() - pos - 1 >= static_cast<std::size_t>(capacity))
@@ -584,10 +625,18 @@ struct TargetDfs {
 
 } // namespace
 
+DfsMemo make_dfs_memo(std::int64_t states) {
+    DfsMemo m;
+    std::size_t slots = 1024;
+    while (static_cast<std::int64_t>(slots) < states && slots < (std::size_t{1} << 21)) slots *= 2;
+    m.table.assign(slots, {});
+    return m;
+}
+
 DfsResult target_dfs(OpGraph const &g, std::vector<std::int32_t> const &tail,
                      std::vector<std::int32_t> const &incumbent, std::int32_t target,
-                     DfsOptions const &o) {
-    TargetDfs s(g);
+                     DfsOptions const &o, DfsMemo &memo) {
+    TargetDfs s(g, memo);
     s.target = target;
     s.lst0.resize(g.n);
     s.rank.resize(g.n);
@@ -600,12 +649,25 @@ DfsResult target_dfs(OpGraph const &g, std::vector<std::int32_t> const &tail,
     s.lst = s.lst0;
     s.noise.assign(g.n, 0);
     s.remaining = g.n;
+    if (memo.target != target || memo.zob_a.size() != static_cast<std::size_t>(g.n)) {
+        memo.target = target;
+        std::mt19937_64 zrng(0x2545f4914f6cdd1dULL);
+        memo.zob_a.resize(static_cast<std::size_t>(g.n));
+        memo.zob_b.resize(static_cast<std::size_t>(g.n));
+        for (std::int32_t i = 0; i < g.n; ++i) {
+            memo.zob_a[static_cast<std::size_t>(i)] = zrng();
+            memo.zob_b[static_cast<std::size_t>(i)] = zrng();
+        }
+        std::fill(memo.table.begin(), memo.table.end(), DfsMemo::Entry{});
+        memo.count = 0;
+    }
     std::mt19937_64 rng(o.seed);
     DfsResult r;
     // Restart 0: the plain order (exhausting it proves the target infeasible); later ones: a
     // perturbed order (deadline plus up to 4 steps of noise), at most restart_nodes nodes each.
     for (std::int64_t it = 0; s.cost < o.cost_limit; ++it) {
         s.step.assign(g.n, 0);
+        s.hash_a = s.hash_b = 0;
         s.remaining = g.n;
         if (it > 0) {
             static constexpr std::int64_t amps[] = {512, 1024, 2048, 4096};
@@ -707,6 +769,9 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_bu
         auto const mirror = reversed(g);
         std::vector<std::int32_t> mirror_tail(g.n), mirror_incumbent(g.n);
         for (std::int32_t i = 0; i < g.n; ++i) mirror_tail[g.n - 1 - i] = r.head[i] - 1;
+        // About one stored state per 2n + 16 cost units at most
+        auto const states = total / (2 * std::int64_t{g.n} + 16);
+        auto memo = make_dfs_memo(states), mirror_memo = make_dfs_memo(states);
         std::int64_t used = 0;
         std::uint64_t chunk = 0; // within the current target
         std::int32_t chunk_target = 0;
@@ -725,10 +790,10 @@ void improve_schedule(OpGraph const &g, HeuristicResult &r, std::int64_t work_bu
             if (on_mirror) {
                 for (std::int32_t i = 0; i < g.n; ++i)
                     mirror_incumbent[g.n - 1 - i] = r.latency + 1 - r.step[i];
-                d = target_dfs(mirror, mirror_tail, mirror_incumbent, target, o);
+                d = target_dfs(mirror, mirror_tail, mirror_incumbent, target, o, mirror_memo);
                 if (!d.step.empty()) d.step = mirror_steps(d.step);
             } else {
-                d = target_dfs(g, r.tail, r.step, target, o);
+                d = target_dfs(g, r.tail, r.step, target, o, memo);
             }
             used += d.cost;
             if (d.infeasible) {
