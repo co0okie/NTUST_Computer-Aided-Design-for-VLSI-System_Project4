@@ -12,6 +12,10 @@
 
 namespace {
 using Id = std::int32_t;
+struct CemNoise { double initial, minimum, seed; };
+CemNoise noise_parameters(bool local) {
+    return local ? CemNoise{0.025, 0.01, 0.04} : CemNoise{0.25, 0.10, 0.4};
+}
 struct SerialCandidate {
     std::vector<Id> step, rank;
     Id latency = 0;
@@ -97,7 +101,7 @@ std::vector<double> step_priorities(std::vector<Id> const &step) {
 } // namespace
 
 OrderSearchStats improve_priority_cem(OpGraph const &g, HeuristicResult &best,
-                                      Clock const &clock, double deadline_elapsed) {
+                                      Clock const &clock, double deadline_elapsed, bool local_noise) {
     OrderSearchStats stats;
     stats.initial_latency = stats.final_latency = best.latency;
     if (g.n < 2 || g.n > 5000 || best.latency <= best.lower_bound ||
@@ -111,7 +115,8 @@ OrderSearchStats improve_priority_cem(OpGraph const &g, HeuristicResult &best,
     std::uint64_t work = 0, completed_generations = 0;
     auto const initial = step_priorities(best.step);
     auto mean = initial;
-    std::vector<double> deviation(g.n, 0.25), key(g.n);
+    auto const noise = noise_parameters(local_noise);
+    std::vector<double> deviation(g.n, noise.initial), key(g.n);
     std::mt19937_64 random(0x82a2b175229d6a5bULL);
     std::normal_distribution<double> normal(0.0, 1.0);
     std::uniform_real_distribution<double> uniform(0.0, 1.0);
@@ -135,7 +140,7 @@ OrderSearchStats improve_priority_cem(OpGraph const &g, HeuristicResult &best,
                 // 20% wholly exploratory samples and 20% seed-centered samples
                 // preserve diversity despite diagonal elite-distribution collapse.
                 key[u] = sample % 5 == 0 ? uniform(random) :
-                         sample % 5 == 1 ? initial[u] + 0.4 * normal(random) :
+                         sample % 5 == 1 ? initial[u] + noise.seed * normal(random) :
                          mean[u] + deviation[u] * normal(random);
             }
             ++stats.attempts;
@@ -164,7 +169,7 @@ OrderSearchStats improve_priority_cem(OpGraph const &g, HeuristicResult &best,
             }
             variance /= static_cast<double>(elite.size());
             mean[u] = 0.7 * mean[u] + 0.3 * average;
-            deviation[u] = std::max(0.10, 0.7 * deviation[u] + 0.3 * std::sqrt(variance));
+            deviation[u] = std::max(noise.minimum, 0.7 * deviation[u] + 0.3 * std::sqrt(variance));
         }
         if (work + cost > work_limit || clock.elapsed() >= deadline_elapsed) break;
     }

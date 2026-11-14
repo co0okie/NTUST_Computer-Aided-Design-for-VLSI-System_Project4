@@ -425,6 +425,8 @@ OrderSearchStats improve_resource_order_anneal(OpGraph const &g, HeuristicResult
 OrderSearchStats improve_resource_order(OpGraph const &g, HeuristicResult &best,
                                          Clock const &clock, double deadline_elapsed) {
     auto const *method = std::getenv("MLRCS_ORDER_METHOD");
+    if (method && std::string(method) == "cem-local")
+        return improve_priority_cem(g, best, clock, deadline_elapsed, true);
     if (method && std::string(method) == "cem")
         return improve_priority_cem(g, best, clock, deadline_elapsed);
     if (method && std::string(method) == "anneal")

@@ -244,3 +244,11 @@ Source新增priority_cem.cpp/.hpp，`MLRCS_ORDER_METHOD=cem`才啟用，single�
 同5case pilot全部原checker＋保存輸出重checker OK；seed→final依序31→31、72→72、35→35、113→113、48→48。每case64generations/2049feasible decode完成，0strict改善，總wall50.74s、max10.34s、fresh Release build14.7s（CPU4–7）。5個pilot的geo1.02136624985與seed完全相同，不可冒充全50指標。source aggregate71d266226774c793be274c7757a409dcd4af47a9fc538546a8ca31c85c15ddeb；notes/hard-order-stage4-pilot-*保留完整provenance/command/results/telemetry/summary。formal5列已追加codex-results.tsv，shared/best audit無strict改善，Q15已通知。
 
 依停止準則沒有全50評估；本輪沒有贏過claude的新證據。上次全50數字1.00446541624只是與同機claude baseline全平。下一個仍屬同路線的小假設是降低normalized rank noise，保留seed結構且維持20%global探索；尚未執行，必須先取得主導者階段決策，避免多參數grid。新差異測資/報告/完整76suite仍未完成。
+
+### Stage5：CEM單一local-noise對照，負結果
+
+依stage4動機只將normalized rank initial sd/floor/seed noise `.25/.10/.4` 改為 `.025/.01/.04`，使用`MLRCS_ORDER_METHOD=cem-local`；原cem保留，20%global探索及其餘工作量/guard不變。必要新參數/toy/固定2049decode重現單元通過，沒有重跑無關測試。
+
+同五case全部原checker與保留輸出重checker OK，seed→final31→31/72→72/35→35/113→113/48→48，完整64generations/2049feasible decode、0strict改善。CPU4–7總wall50.88s/max10.50s/fresh Release build16.3s；5case geo仍1.02136624985，沒有全50新成績。詳見hard-order-stage5.md及同名pilot artifacts，source hashfb505327c533840d3ae03471cf6958f898c27de022371fcce25b105ad9de9e67。
+
+formal5列已入codex-results.tsv，source current與snapshot逐檔一致；shared best audit無strict latency/LB改善，Q16已通知。此負結果不支持「只縮小CEM noise就能跨過差1barrier」；依事先準則不擴大全50，也不再提出額外noise變體。本階段未完成全suite、新差異測資或報告，未宣稱贏過claude。接下來等待主導者按剩餘額度作研究決策，先保持乾淨commit。
