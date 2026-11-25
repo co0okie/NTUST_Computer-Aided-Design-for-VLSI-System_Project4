@@ -1,63 +1,105 @@
 #pragma once
 
+#include <cstdint>
+#include <memory>
 #include <string>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "result.hpp"
 
-// Gurobi is used through its command-line tool, gurobi_cl: we write an LP file, run gurobi_cl
-// as a child process and read back its solution file. No Gurobi headers or libraries are linked.
+// Gurobi through its C API (gurobi_c.h, libgurobiNNN.so), found through $GUROBI_HOME by CMake.
+// Built without Gurobi (MLRCS_HAVE_GUROBI undefined), Gurobi::open returns an error.
+// The header hides every Gurobi type, so the rest of the program compiles either way.
 
-// Finds a working gurobi_cl: first on PATH, then in $GUROBI_HOME/bin. "Working" means
-// `gurobi_cl --version` exits with status 0 (catches a missing LD_LIBRARY_PATH, for example).
-Result<std::string> find_gurobi_cl();
-
-// A scratch directory for the LP/solution/log files. Removed on destruction unless `keep`.
-class ScratchDir {
-public:
-    // Creates `requested` if given (kept afterwards), else a fresh directory under TMPDIR.
-    static Result<ScratchDir> create(std::string const &requested);
-    ScratchDir(ScratchDir &&other) noexcept;
-    ScratchDir &operator=(ScratchDir &&) = delete;
-    ScratchDir(ScratchDir const &) = delete;
-    ~ScratchDir();
-
-    std::string const &path() const { return path_; }
-    std::string file(std::string const &name) const { return path_ + "/" + name; }
-
-private:
-    ScratchDir(std::string path, bool keep) : path_(std::move(path)), keep_(keep) {}
-    std::string path_;
-    bool keep_ = false;
-};
-
-struct GurobiJob {
-    std::string model_file;  // .lp file to solve
-    std::string start_file;  // optional MIP start (.mst), empty for none
-    std::string result_file; // where gurobi_cl writes the solution (.sol)
-    std::string log_file;    // gurobi_cl stdout and stderr
-    std::vector<std::pair<std::string, std::string>> params; // e.g. {"TimeLimit", "50"}
-    // Seconds from launch. Gurobi checks TimeLimit only now and then (rarely during presolve and
-    // the root LP), so it is interrupted with SIGINT (it then stops and writes its best solution)
-    // and, if it still runs, killed.
-    double interrupt_after = 60;
-    double kill_after = 62;
-};
+enum class VarType { Binary, Integer, Continuous };
+enum class Sense { LessEqual, GreaterEqual, Equal };
 
 enum class SolveStatus { Optimal, TimeLimit, Infeasible, Other };
 
 char const *status_name(SolveStatus s);
 
-struct GurobiResult {
+struct SolveResult {
     SolveStatus status = SolveStatus::Other;
-    bool killed = false; // had to be killed; there is no solution
-    bool has_solution = false;
-    double objective = 0;
-    double best_bound = 0; // from the log's final "best bound" (valid when has_bound)
-    bool has_bound = false;
-    std::unordered_map<std::string, double> value; // nonzero variables from the solution file
+    bool has_solution = false;   // x holds a feasible solution
+    double objective = 0;        // of that solution
+    double bound = 0;            // best proven bound on the objective (minimization)
+    bool has_bound = false;      // `bound` is finite (Gurobi may stop before it has one)
+    std::vector<double> x;       // one value per variable, if has_solution
+    double seconds = 0;          // wall time spent in optimize
 };
 
-Result<GurobiResult> run_gurobi(std::string const &gurobi_cl, GurobiJob const &job);
+// Constraints collected for one batched Gurobi::add_constrs call (CSR rows)
+struct RowBatch {
+    std::vector<std::int32_t> beg; // start of each row in ind/val
+    std::vector<std::int32_t> ind;
+    std::vector<double> val;
+    std::vector<Sense> sense;
+    std::vector<double> rhs;
+
+    void term(std::int32_t var, double coef) {
+        ind.push_back(var);
+        val.push_back(coef);
+    }
+    // Closes the row made of the terms added since the previous end_row
+    void end_row(Sense s, double r) {
+        beg.push_back(row_start);
+        sense.push_back(s);
+        rhs.push_back(r);
+        row_start = static_cast<std::int32_t>(ind.size());
+    }
+    std::size_t nonzeros() const { return ind.size(); }
+    void clear() {
+        beg.clear();
+        ind.clear();
+        val.clear();
+        sense.clear();
+        rhs.clear();
+        row_start = 0;
+    }
+
+private:
+    std::int32_t row_start = 0;
+};
+
+struct GurobiImpl;
+
+// One Gurobi environment with one model, minimizing. Console output is off.
+class Gurobi {
+public:
+    // Starts the environment (license check). `log_file` empty: no Gurobi log. `threads` 0:
+    // Gurobi's default.
+    static Result<Gurobi> open(std::string const &log_file, int threads);
+    Gurobi(Gurobi &&) noexcept;
+    Gurobi &operator=(Gurobi &&) noexcept;
+    Gurobi(Gurobi const &) = delete;
+    Gurobi &operator=(Gurobi const &) = delete;
+    ~Gurobi();
+
+    // Adds `count` variables with the same bounds, objective and type; returns the index of the
+    // first one. Indices are consecutive, starting at 0 for the first variable of the model.
+    Result<std::int32_t> add_vars(std::int32_t count, double lb, double ub, double obj, VarType type);
+    // sum(val[j] * x[ind[j]]) sense rhs
+    Result<Unit> add_constr(std::vector<std::int32_t> const &ind, std::vector<double> const &val,
+                            Sense sense, double rhs);
+    // Adds every row of `rows` in one call
+    Result<Unit> add_constrs(RowBatch const &rows);
+    std::int32_t num_vars() const;
+    // Replaces the model with a new empty one (variables, constraints, start and per-model
+    // parameters are dropped; the environment and its parameters, e.g. Threads, stay)
+    Result<Unit> reset_model();
+
+    Result<Unit> set_int_param(char const *name, int value);
+    Result<Unit> set_double_param(char const *name, double value);
+    // MIP start: one value per variable
+    Result<Unit> set_start(std::vector<double> const &start);
+    // Writes the model (format from the extension, e.g. .lp or .mps), for debugging
+    Result<Unit> write(std::string const &path);
+
+    // Optimizes for at most `seconds` of wall time. Besides Gurobi's own TimeLimit, a watchdog
+    // thread calls GRBterminate at the deadline, since TimeLimit is only checked now and then.
+    Result<SolveResult> solve(double seconds);
+
+private:
+    explicit Gurobi(std::unique_ptr<GurobiImpl> impl);
+    std::unique_ptr<GurobiImpl> impl_;
+};

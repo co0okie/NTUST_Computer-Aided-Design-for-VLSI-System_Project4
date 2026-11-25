@@ -4,24 +4,11 @@
 #include <array>
 #include <cmath>
 #include <cstdio>
-#include <fstream>
 #include <string>
 
 #include "gurobi.hpp"
 
 namespace {
-
-std::string y(std::int32_t i, std::int32_t t) {
-    return "y" + std::to_string(i) + "_" + std::to_string(t);
-}
-
-Result<Unit> write_file(std::string const &path, std::string const &text) {
-    std::ofstream out(path, std::ios::binary);
-    if (!out) return err("cannot write " + path);
-    out << text;
-    if (!out) return err("cannot write " + path);
-    return Unit{};
-}
 
 // Step formulation of "is there a schedule with latency <= horizon?".
 //
@@ -54,22 +41,55 @@ StepModel make_step_model(OpGraph const &g, HeuristicResult const &h, std::int32
     return m;
 }
 
-std::string write_step_model(OpGraph const &g, StepModel const &m) {
-    std::string lp = "\\ ML-RCS step formulation, horizon " + std::to_string(m.horizon) +
-                     "\nMinimize\n 0 dummy\nSubject To\n";
+// Rows are handed to Gurobi in batches of about this many nonzeros (bounds the buffer)
+constexpr std::size_t BATCH_NONZEROS = 1u << 22;
+
+Result<Unit> flush_if_full(Gurobi &gurobi, RowBatch &rows) {
+    if (rows.nonzeros() < BATCH_NONZEROS) return Unit{};
+    TRY_VOID(gurobi.add_constrs(rows));
+    rows.clear();
+    return Unit{};
+}
+
+// Builds the step model into `gurobi` (which must hold an empty model). Variable y_{i,t} is
+// base[i] + t - early[i]. Returns false if a resource row is infeasible on its own (more ops
+// fixed at a step than units).
+Result<bool> build_step_model(OpGraph const &g, StepModel const &m, Gurobi &gurobi,
+                              std::vector<std::int32_t> &base) {
+    base.assign(g.n, 0);
+    std::int64_t total = 0;
+    for (std::int32_t i = 0; i < g.n; ++i) {
+        base[i] = static_cast<std::int32_t>(total);
+        total += std::max(0, m.late[i] - m.early[i]);
+    }
+    if (total > 0) {
+        TRY(auto const first, gurobi.add_vars(static_cast<std::int32_t>(total), 0, 1, 0, VarType::Binary));
+        if (first != 0) return err("build_step_model: model not empty");
+    }
     auto const is_var = [&](std::int32_t i, std::int32_t t) {
         return t >= m.early[i] && t < m.late[i];
     };
+    auto const y = [&](std::int32_t i, std::int32_t t) { return base[i] + (t - m.early[i]); };
+    RowBatch rows;
     for (std::int32_t i = 0; i < g.n; ++i) {
-        for (auto t = m.early[i]; t + 1 < m.late[i]; ++t)
-            lp += " " + y(i, t) + " - " + y(i, t + 1) + " <= 0\n";
+        for (auto t = m.early[i]; t + 1 < m.late[i]; ++t) {
+            rows.term(y(i, t), 1);
+            rows.term(y(i, t + 1), -1);
+            rows.end_row(Sense::LessEqual, 0);
+        }
         for (auto const j : g.pred.row(i)) {
             for (auto t = m.early[i]; t < m.late[i]; ++t) {
                 if (t - 1 >= m.late[j]) break; // j is surely done
-                if (is_var(j, t - 1)) lp += " " + y(i, t) + " - " + y(j, t - 1) + " <= 0\n";
-                else lp += " " + y(i, t) + " = 0\n"; // j cannot be done by t - 1
+                rows.term(y(i, t), 1);
+                if (is_var(j, t - 1)) {
+                    rows.term(y(j, t - 1), -1);
+                    rows.end_row(Sense::LessEqual, 0);
+                } else {
+                    rows.end_row(Sense::Equal, 0); // j cannot be done by t - 1
+                }
             }
         }
+        TRY_VOID(flush_if_full(gurobi, rows));
     }
     // Resource rows: op i contributes y_{i,t} - y_{i,t-1} for t in [e_i, l_i]
     std::vector<std::array<std::vector<std::int32_t>, OP_KINDS>> active(m.horizon + 2);
@@ -80,22 +100,22 @@ std::string write_step_model(OpGraph const &g, StepModel const &m) {
             auto const &ops = active[t][k];
             if (static_cast<std::int32_t>(ops.size()) <= g.limit[k]) continue;
             std::int64_t rhs = g.limit[k];
-            int terms = 0;
-            lp += " r" + std::to_string(k) + "_" + std::to_string(t) + ":";
+            std::size_t terms = 0;
             for (auto const i : ops) {
-                if (is_var(i, t)) lp += " + " + y(i, t), ++terms;
+                if (is_var(i, t)) rows.term(y(i, t), 1), ++terms;
                 else --rhs; // t == l_i: y_{i,t} is 1
-                if (is_var(i, t - 1)) lp += " - " + y(i, t - 1), ++terms;
-                if (terms >= 8) lp += "\n ", terms = 0;
+                if (is_var(i, t - 1)) rows.term(y(i, t - 1), -1), ++terms;
             }
-            lp += " <= " + std::to_string(rhs) + "\n";
+            if (terms == 0) {
+                if (rhs < 0) return false;
+                continue;
+            }
+            rows.end_row(Sense::LessEqual, static_cast<double>(rhs));
         }
+        TRY_VOID(flush_if_full(gurobi, rows));
     }
-    lp += "Bounds\n dummy = 0\nBinaries\n";
-    for (std::int32_t i = 0; i < g.n; ++i)
-        for (auto t = m.early[i]; t < m.late[i]; ++t) lp += " " + y(i, t) + "\n";
-    lp += "End\n";
-    return lp;
+    TRY_VOID(gurobi.add_constrs(rows));
+    return true;
 }
 
 // Checks precedence, resources and the horizon; the caller validates again on the netlist.
@@ -149,10 +169,6 @@ std::string one_decimal(double x) {
     return text;
 }
 
-std::string z(std::int32_t i, std::int32_t j) {
-    return "z" + std::to_string(i) + "_" + std::to_string(j);
-}
-
 // Checkpoint j' that a predecessor must have reached when its successor has reached j
 std::int32_t pred_checkpoint(std::vector<std::int32_t> const &tau, std::int32_t j) {
     return (j >= 1 && tau[j - 1] == tau[j] - 1) ? j - 1 : j;
@@ -203,47 +219,56 @@ CheckpointModel make_checkpoint_model(OpGraph const &g, std::vector<std::int32_t
     return cm;
 }
 
-std::string write_checkpoint_model(OpGraph const &g, CheckpointModel const &cm, int b) {
+// Builds the checkpoint model into `gurobi` (empty model), as a minimization of
+// -sum z_{i,m} over the kind-b ops. Variable z_{i,j} is base[i] + j - first[i].
+Result<Unit> build_checkpoint_model(OpGraph const &g, CheckpointModel const &cm, int b,
+                                    Gurobi &gurobi, std::vector<std::int32_t> &base) {
     auto const m = static_cast<std::int32_t>(cm.tau.size()) - 1;
-    std::string lp = "\\ ML-RCS checkpoint relaxation, T = " + std::to_string(cm.tau[m]) +
-                     ", m = " + std::to_string(m) + "\nMaximize\n";
-    int terms = 0;
-    for (std::int32_t i = 0; i < g.n; ++i) {
-        if (cm.first[i] > m || g.kind[i] != b) continue;
-        lp += " + " + z(i, m);
-        if (++terms % 8 == 0) lp += "\n";
-    }
-    lp += "\nSubject To\n";
+    base.assign(g.n, -1);
     for (std::int32_t i = 0; i < g.n; ++i) {
         if (cm.first[i] > m) continue;
-        for (auto j = cm.first[i]; j < m; ++j) lp += " " + z(i, j) + " - " + z(i, j + 1) + " <= 0\n";
-        for (auto const p : g.pred.row(i))
-            for (auto j = cm.first[i]; j <= m; ++j)
-                lp += " " + z(i, j) + " - " + z(p, pred_checkpoint(cm.tau, j)) + " <= 0\n";
-    }
-    std::vector<std::int32_t> ops;
-    for (std::int32_t j = 1; j <= m; ++j) {
-        for (int k = 0; k < OP_KINDS; ++k) {
-            ops.clear();
-            for (std::int32_t i = 0; i < g.n; ++i)
-                if (g.kind[i] == k && cm.first[i] <= j) ops.push_back(i);
-            auto const rhs = static_cast<std::int64_t>(g.limit[k]) * (cm.tau[j] - cm.tau[j - 1]);
-            if (static_cast<std::int64_t>(ops.size()) <= rhs) continue;
-            terms = 0;
-            lp += " c" + std::to_string(k) + "_" + std::to_string(j) + ":";
-            for (auto const i : ops) {
-                lp += " + " + z(i, j), ++terms;
-                if (cm.first[i] <= j - 1) lp += " - " + z(i, j - 1), ++terms;
-                if (terms >= 8) lp += "\n ", terms = 0;
-            }
-            lp += " <= " + std::to_string(rhs) + "\n";
+        auto const count = m - cm.first[i] + 1;
+        if (g.kind[i] == b) {
+            // z_{i,first..m-1} (no objective), then z_{i,m} (objective -1), consecutive
+            TRY(base[i], gurobi.add_vars(count - 1, 0, 1, 0, VarType::Binary));
+            TRY(auto const last, gurobi.add_vars(1, 0, 1, -1, VarType::Binary));
+            if (last != base[i] + count - 1) return err("build_checkpoint_model: variable order");
+        } else {
+            TRY(base[i], gurobi.add_vars(count, 0, 1, 0, VarType::Binary));
         }
     }
-    lp += "Binaries\n";
-    for (std::int32_t i = 0; i < g.n; ++i)
-        for (auto j = cm.first[i]; j <= m; ++j) lp += " " + z(i, j) + "\n";
-    lp += "End\n";
-    return lp;
+    auto const z = [&](std::int32_t i, std::int32_t j) { return base[i] + (j - cm.first[i]); };
+    RowBatch rows;
+    for (std::int32_t i = 0; i < g.n; ++i) {
+        if (cm.first[i] > m) continue;
+        for (auto j = cm.first[i]; j < m; ++j) {
+            rows.term(z(i, j), 1);
+            rows.term(z(i, j + 1), -1);
+            rows.end_row(Sense::LessEqual, 0);
+        }
+        for (auto const p : g.pred.row(i))
+            for (auto j = cm.first[i]; j <= m; ++j) {
+                rows.term(z(i, j), 1);
+                rows.term(z(p, pred_checkpoint(cm.tau, j)), -1);
+                rows.end_row(Sense::LessEqual, 0);
+            }
+    }
+    for (std::int32_t j = 1; j <= m; ++j) {
+        for (int k = 0; k < OP_KINDS; ++k) {
+            std::int64_t ops = 0;
+            for (std::int32_t i = 0; i < g.n; ++i)
+                if (g.kind[i] == k && cm.first[i] <= j) ++ops;
+            auto const rhs = static_cast<std::int64_t>(g.limit[k]) * (cm.tau[j] - cm.tau[j - 1]);
+            if (ops <= rhs) continue;
+            for (std::int32_t i = 0; i < g.n; ++i) {
+                if (g.kind[i] != k || cm.first[i] > j) continue;
+                rows.term(z(i, j), 1);
+                if (cm.first[i] <= j - 1) rows.term(z(i, j - 1), -1);
+            }
+            rows.end_row(Sense::LessEqual, static_cast<double>(rhs));
+        }
+    }
+    return gurobi.add_constrs(rows);
 }
 
 struct CheckpointResult {
@@ -253,48 +278,39 @@ struct CheckpointResult {
     double seconds = 0;
 };
 
-CheckpointResult solve_checkpoint_model(OpGraph const &g, CheckpointModel const &cm, int b,
-                                        std::string const &base, IlpOptions const &options,
-                                        double time_limit) {
+Result<CheckpointResult> solve_checkpoint_model(OpGraph const &g, CheckpointModel const &cm,
+                                                int b, std::string const &name, Gurobi &gurobi,
+                                                IlpOptions const &options, double time_limit) {
     CheckpointResult r;
     auto const m = static_cast<std::int32_t>(cm.tau.size()) - 1;
     if (cm.vars == 0) { // no kind-b op can run by T
         r.solved = true;
         return r;
     }
-    GurobiJob job;
-    job.model_file = base + ".lp";
-    job.result_file = base + ".sol";
-    job.log_file = base + ".log";
     Clock const timer;
-    if (!write_file(job.model_file, write_checkpoint_model(g, cm, b))) return r;
+    TRY_VOID(gurobi.reset_model());
+    std::vector<std::int32_t> base;
+    TRY_VOID(build_checkpoint_model(g, cm, b, gurobi, base));
+    TRY_VOID(gurobi.set_double_param("MIPGap", 0));
+    TRY_VOID(gurobi.set_double_param("MIPGapAbs", 0.999));
+    if (!options.keep_dir.empty()) TRY_VOID(gurobi.write(options.keep_dir + "/" + name + ".lp"));
     auto const left = std::max(0.5, time_limit - timer.elapsed());
-    job.params = {{"LogFile", ""},
-                  {"TimeLimit", std::to_string(left)},
-                  {"MIPGap", "0"},
-                  {"MIPGapAbs", "0.999"}};
-    if (options.threads > 0) job.params.push_back({"Threads", std::to_string(options.threads)});
-    job.interrupt_after = left + 0.5;
-    job.kill_after = left + 1.5;
-    auto const solved = run_gurobi(options.gurobi_cl, job);
+    TRY(auto const s, gurobi.solve(left));
     r.seconds = timer.elapsed();
-    if (!solved) return r;
-    auto const &s = solved.value();
     if (s.has_bound) {
-        // The objective is integral; a tiny tolerance only ever rounds the bound up
-        r.bound = static_cast<std::int64_t>(std::floor(s.best_bound + 1e-6));
+        // Maximum = -(minimum of the negated objective). The objective is integral; a tiny
+        // tolerance only ever rounds the bound up
+        r.bound = static_cast<std::int64_t>(std::floor(-s.bound + 1e-6));
         r.solved = true;
     }
     if (s.has_solution) {
         r.reached.assign(g.n, 0);
         for (std::int32_t i = 0; i < g.n; ++i)
-            for (auto j = cm.first[i]; j <= m; ++j) {
-                auto const it = s.value.find(z(i, j));
-                if (it != s.value.end() && it->second > 0.5) {
+            for (auto j = cm.first[i]; j <= m; ++j)
+                if (s.x[base[i] + (j - cm.first[i])] > 0.5) {
                     r.reached[i] = j;
                     break;
                 }
-            }
     }
     return r;
 }
@@ -332,7 +348,7 @@ int bottleneck_kind(OpGraph const &g) {
 // idle_head idle slots in the first T steps and idle_tail in the last T' steps, so
 //   latency >= ceil((N_b + idle_head + idle_tail) / c_b)        (valid since T + T' <= old LB).
 // The relaxations' incumbents also order the ops for a few guided list-scheduling passes.
-void ends_relaxation(OpGraph const &g, HeuristicResult const &h, ScratchDir const &dir,
+void ends_relaxation(OpGraph const &g, HeuristicResult const &h, Gurobi &gurobi,
                      IlpOptions const &options, Clock const &clock, ExactResult &result) {
     auto const &eo = options.ends;
     auto const b = bottleneck_kind(g);
@@ -386,8 +402,11 @@ void ends_relaxation(OpGraph const &g, HeuristicResult const &h, ScratchDir cons
             continue;
         }
         ++result.solves;
-        auto const r = solve_checkpoint_model(graph, cm, b, dir.file(side == 0 ? "head" : "tail"),
-                                              options, budget);
+        auto const solved = solve_checkpoint_model(graph, cm, b, side == 0 ? "head" : "tail",
+                                                   gurobi, options, budget);
+        // Solver trouble: no bound from this side (the schedule is unaffected)
+        auto const r = solved ? solved.value() : CheckpointResult{};
+        if (!solved) result.note += (result.note.empty() ? "" : ",") + std::string("gurobi_failed");
         auto const slots = c * span[side];
         if (r.solved) idle[side] = std::max<std::int64_t>(0, slots - r.bound);
         note += "/" + (r.solved ? std::to_string(slots - std::min(slots, r.bound)) : std::string("x")) +
@@ -440,7 +459,7 @@ char const *exact_status_name(ExactStatus s) {
     return "?";
 }
 
-ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
+ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic, Gurobi &gurobi,
                            IlpOptions const &options, Clock const &clock) {
     ExactResult result;
     result.step = heuristic.step;
@@ -450,20 +469,18 @@ ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
         result.status = ExactStatus::Bound;
         return result;
     }
-    auto scratch = ScratchDir::create(options.keep_dir);
-    if (!scratch) {
-        result.status = ExactStatus::TimeLimit;
-        result.note = "no_scratch_dir";
-        return result;
-    }
-    auto const &dir = scratch.value();
     if (options.ends.force) { // test hook: only the end relaxations
-        ends_relaxation(g, heuristic, dir, options, clock, result);
+        ends_relaxation(g, heuristic, gurobi, options, clock, result);
         result.status = result.latency <= result.lower_bound ? ExactStatus::Bound
                                                              : ExactStatus::TimeLimit;
         return result;
     }
 
+    auto const give_up = [&](char const *note) {
+        result.status = ExactStatus::TimeLimit;
+        result.note = note;
+        return result;
+    };
     while (result.latency > result.lower_bound) {
         auto const horizon = result.latency - 1;
         auto const model = make_step_model(g, heuristic, horizon);
@@ -474,67 +491,56 @@ ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
         result.num_vars = model.num_vars;
         result.num_nonzeros = model.num_nonzeros;
         if (model.num_vars > options.max_vars || model.num_nonzeros > options.max_nonzeros) {
-            ends_relaxation(g, heuristic, dir, options, clock, result);
+            ends_relaxation(g, heuristic, gurobi, options, clock, result);
             if (result.latency <= result.lower_bound) break;
             result.status = ExactStatus::TooLarge;
             return result;
         }
-        auto const remaining = clock.remaining();
-        if (remaining < 4.0) {
+        if (clock.remaining() < 4.0) {
             result.status = ExactStatus::TimeLimit;
             return result;
         }
-        GurobiJob job;
-        auto const tag = std::to_string(horizon);
-        job.model_file = dir.file("model" + tag + ".lp");
-        job.result_file = dir.file("model" + tag + ".sol");
-        job.log_file = dir.file("gurobi" + tag + ".log");
-        if (!write_file(job.model_file, write_step_model(g, model))) {
-            result.status = ExactStatus::TimeLimit;
-            result.note = "cannot_write_model";
-            return result;
+        Clock const build_timer;
+        if (!gurobi.reset_model()) return give_up("gurobi_failed");
+        std::vector<std::int32_t> base;
+        auto const built = build_step_model(g, model, gurobi, base);
+        if (!built) return give_up("gurobi_failed");
+        result.build_seconds += build_timer.elapsed();
+        if (!built.value()) { // a step needs more units than there are
+            result.lower_bound = result.latency;
+            break;
         }
-        auto const left = clock.remaining();
-        job.params = {{"LogFile", ""},
-                      {"TimeLimit", std::to_string(std::max(1.0, left - 3.0))},
-                      {"DualReductions", "0"},
-                      {"Method", "2"},
-                      {"Presolve", "2"}}; // barrier + aggressive presolve: see notes (C1355:3,2,2)
-        if (options.threads > 0) job.params.push_back({"Threads", std::to_string(options.threads)});
-        job.interrupt_after = std::max(1.0, left - 2.0);
-        job.kill_after = std::max(1.5, left - 1.0);
+        // Barrier + aggressive presolve: see notes (C1355:3,2,2)
+        if (!gurobi.set_int_param("DualReductions", 0) || !gurobi.set_int_param("Method", 2) ||
+            !gurobi.set_int_param("Presolve", 2))
+            return give_up("gurobi_failed");
+        if (!options.keep_dir.empty())
+            (void)gurobi.write(options.keep_dir + "/model" + std::to_string(horizon) + ".lp");
         ++result.solves;
-        auto const solved = run_gurobi(options.gurobi_cl, job);
-        if (!solved) {
-            result.status = ExactStatus::TimeLimit;
-            result.note = "gurobi_failed";
-            return result;
-        }
+        auto const solved = gurobi.solve(std::max(1.0, clock.remaining() - 3.0));
+        if (!solved) return give_up("gurobi_failed");
         auto const &s = solved.value();
         if (s.status == SolveStatus::Infeasible) {
             result.lower_bound = result.latency;
             break;
         }
-        if (!s.has_solution) {
+        // A model without variables has the single solution "every op at its latest step"
+        bool const all_fixed = model.num_vars == 0 && s.status == SolveStatus::Optimal;
+        if (!s.has_solution && !all_fixed) {
             result.status = ExactStatus::TimeLimit;
             return result;
         }
         std::vector<std::int32_t> step(g.n);
         for (std::int32_t i = 0; i < g.n; ++i) {
             step[i] = model.late[i];
-            for (auto t = model.early[i]; t < model.late[i]; ++t) {
-                auto const it = s.value.find(y(i, t));
-                if (it != s.value.end() && it->second > 0.5) {
+            if (all_fixed) continue;
+            for (auto t = model.early[i]; t < model.late[i]; ++t)
+                if (s.x[base[i] + (t - model.early[i])] > 0.5) {
                     step[i] = t;
                     break;
                 }
-            }
         }
-        if (!feasible(g, step, horizon)) {
-            result.status = ExactStatus::TimeLimit;
-            result.note = "bad_solution";
-            return result;
-        }
+        if (!feasible(g, step, horizon)) return give_up("bad_solution");
         result.step = std::move(step);
         result.latency = 0;
         for (auto const t : result.step) result.latency = std::max(result.latency, t);

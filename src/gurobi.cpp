@@ -1,119 +1,17 @@
 #include "gurobi.hpp"
 
-#include <cerrno>
 #include <chrono>
 #include <cmath>
-#include <cstdlib>
-#include <cstring>
-#include <fcntl.h>
-#include <filesystem>
-#include <fstream>
-#include <signal.h>
-#include <spawn.h>
-#include <sstream>
-#include <sys/wait.h>
+#include <limits>
+#include <condition_variable>
+#include <mutex>
 #include <thread>
-#include <unistd.h>
 
-extern char **environ;
-
-namespace fs = std::filesystem;
-
-namespace {
-
-struct Exit {
-    bool exited = false; // false: terminated by a signal
-    bool killed = false; // we had to send SIGKILL
-    int code = -1;
-};
-
-using SteadyTime = std::chrono::steady_clock::time_point;
-
-SteadyTime after(SteadyTime start, double seconds) {
-    return start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                       std::chrono::duration<double>(seconds));
+#ifdef MLRCS_HAVE_GUROBI
+extern "C" {
+#include <gurobi_c.h>
 }
-
-// Runs argv[0] with stdin from /dev/null and stdout+stderr to `log`. Sends SIGINT after
-// `interrupt_after` seconds and SIGKILL after `kill_after` seconds.
-Result<Exit> spawn_and_wait(std::vector<std::string> const &args, std::string const &log,
-                            double interrupt_after, double kill_after) {
-    std::vector<char *> argv;
-    for (auto const &a : args) argv.push_back(const_cast<char *>(a.c_str()));
-    argv.push_back(nullptr);
-
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_addopen(&actions, STDIN_FILENO, "/dev/null", O_RDONLY, 0);
-    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, log.c_str(),
-                                     O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    posix_spawn_file_actions_adddup2(&actions, STDOUT_FILENO, STDERR_FILENO);
-    pid_t pid = 0;
-    int const rc = posix_spawn(&pid, argv[0], &actions, nullptr, argv.data(), environ);
-    posix_spawn_file_actions_destroy(&actions);
-    if (rc != 0) return err("cannot start " + args[0] + ": " + std::strerror(rc));
-
-    auto const start = std::chrono::steady_clock::now();
-    auto const interrupt_at = after(start, interrupt_after);
-    auto const kill_at = after(start, kill_after);
-    bool interrupted = false;
-    bool killed = false;
-    int status = 0;
-    for (;;) {
-        pid_t const done = waitpid(pid, &status, WNOHANG);
-        if (done == pid) break;
-        if (done < 0 && errno != EINTR) return err(std::string("waitpid: ") + std::strerror(errno));
-        auto const now = std::chrono::steady_clock::now();
-        if (!interrupted && now >= interrupt_at) {
-            kill(pid, SIGINT);
-            interrupted = true;
-        }
-        if (!killed && now >= kill_at) {
-            kill(pid, SIGKILL);
-            killed = true;
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
-    Exit e;
-    e.exited = WIFEXITED(status);
-    e.killed = killed;
-    e.code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    return e;
-}
-
-bool contains(std::string const &haystack, char const *needle) {
-    return haystack.find(needle) != std::string::npos;
-}
-
-} // namespace
-
-Result<std::string> find_gurobi_cl() {
-    std::vector<std::string> candidates;
-    if (char const *path = std::getenv("PATH")) {
-        std::string dirs = path;
-        std::size_t start = 0;
-        while (start <= dirs.size()) {
-            auto const end = std::min(dirs.find(':', start), dirs.size());
-            auto const dir = dirs.substr(start, end - start);
-            candidates.push_back((dir.empty() ? std::string(".") : dir) + "/gurobi_cl");
-            start = end + 1;
-        }
-    }
-    if (char const *home = std::getenv("GUROBI_HOME"))
-        candidates.push_back(std::string(home) + "/bin/gurobi_cl");
-
-    std::string broken;
-    for (auto const &c : candidates) {
-        if (access(c.c_str(), X_OK) != 0) continue;
-        auto const probe = spawn_and_wait({c, "--version"}, "/dev/null", 10, 12);
-        if (probe && probe.value().exited && probe.value().code == 0) return c;
-        if (broken.empty()) broken = c;
-    }
-    if (!broken.empty())
-        return err("found " + broken +
-                   " but it does not run (is LD_LIBRARY_PATH set to Gurobi's lib directory?)");
-    return err("gurobi_cl not found on PATH or in $GUROBI_HOME/bin; -e needs Gurobi");
-}
+#endif
 
 char const *status_name(SolveStatus s) {
     switch (s) {
@@ -125,95 +23,243 @@ char const *status_name(SolveStatus s) {
     return "?";
 }
 
-Result<ScratchDir> ScratchDir::create(std::string const &requested) {
-    std::error_code ec;
-    if (!requested.empty()) {
-        fs::create_directories(requested, ec);
-        if (ec) return err("cannot create " + requested + ": " + ec.message());
-        return ScratchDir(requested, true);
-    }
-    auto const base = fs::temp_directory_path(ec);
-    if (ec) return err("no temporary directory: " + ec.message());
-    std::string pattern = (base / "mlrcs.XXXXXX").string();
-    if (mkdtemp(pattern.data()) == nullptr)
-        return err("cannot create a directory in " + base.string() + ": " + std::strerror(errno));
-    return ScratchDir(pattern, false);
-}
+#ifdef MLRCS_HAVE_GUROBI
 
-ScratchDir::ScratchDir(ScratchDir &&other) noexcept
-    : path_(std::move(other.path_)), keep_(other.keep_) {
-    other.path_.clear();
-}
+struct GurobiImpl {
+    GRBenv *env = nullptr;     // owned
+    GRBmodel *model = nullptr; // owned
+    std::int32_t vars = 0;
 
-ScratchDir::~ScratchDir() {
-    if (keep_ || path_.empty()) return;
-    std::error_code ec;
-    fs::remove_all(path_, ec);
-}
-
-Result<GurobiResult> run_gurobi(std::string const &gurobi_cl, GurobiJob const &job) {
-    std::vector<std::string> args{gurobi_cl};
-    for (auto const &[key, value] : job.params) args.push_back(key + "=" + value);
-    args.push_back("ResultFile=" + job.result_file);
-    if (!job.start_file.empty()) args.push_back("InputFile=" + job.start_file);
-    args.push_back(job.model_file);
-
-    std::error_code ec;
-    fs::remove(job.result_file, ec);
-    TRY(auto const exit,
-        spawn_and_wait(args, job.log_file, job.interrupt_after, job.kill_after));
-
-    std::ifstream log_in(job.log_file);
-    std::stringstream log_text;
-    log_text << log_in.rdbuf();
-    auto const log = log_text.str();
-
-    GurobiResult result;
-    if (exit.killed) {
-        result.status = SolveStatus::TimeLimit;
-        result.killed = true;
-        return result;
-    }
-    if (contains(log, "Optimal solution found")) result.status = SolveStatus::Optimal;
-    else if (contains(log, "Time limit reached") || contains(log, "Interrupt request received") ||
-             contains(log, "Solve interrupted"))
-        result.status = SolveStatus::TimeLimit;
-    else if (contains(log, "Model is infeasible")) result.status = SolveStatus::Infeasible;
-    if (!exit.exited)
-        return err("gurobi_cl was terminated by a signal, see " + job.log_file);
-    if (exit.code != 0)
-        return err("gurobi_cl exited with status " + std::to_string(exit.code) + ", see " +
-                   job.log_file);
-
-    auto const bound_at = log.rfind("best bound ");
-    if (bound_at != std::string::npos) {
-        // "best bound -" (interrupted before the root LP ended) is no bound at all
-        char const *const text = log.c_str() + bound_at + 11;
-        char *end = nullptr;
-        auto const v = std::strtod(text, &end);
-        if (end != text && std::isfinite(v)) {
-            result.best_bound = v;
-            result.has_bound = true;
-        }
+    GurobiImpl() = default;
+    GurobiImpl(GurobiImpl const &) = delete;
+    GurobiImpl &operator=(GurobiImpl const &) = delete;
+    ~GurobiImpl() {
+        if (model != nullptr) GRBfreemodel(model);
+        if (env != nullptr) GRBfreeenv(env);
     }
 
-    std::ifstream sol(job.result_file);
-    if (!sol) return result; // no solution file: no feasible solution found
-    for (std::string line; std::getline(sol, line);) {
-        if (line.empty()) continue;
-        if (line[0] == '#') {
-            auto const eq = line.find("Objective value =");
-            if (eq != std::string::npos)
-                result.objective = std::strtod(line.c_str() + eq + 17, nullptr);
-            continue;
-        }
-        std::istringstream fields(line);
-        std::string name;
-        double v = 0;
-        if (fields >> name >> v) {
-            if (v != 0) result.value.emplace(std::move(name), v);
-        }
+    GRBenv *model_env() const { return GRBgetenv(model); }
+    Error error(char const *what) const {
+        char const *msg = GRBgeterrormsg(model != nullptr ? model_env() : env);
+        return Error{std::string("Gurobi: ") + what + ": " + (msg != nullptr ? msg : "?")};
     }
-    result.has_solution = true;
-    return result;
+};
+
+namespace {
+
+Result<Unit> check(GurobiImpl const &g, int code, char const *what) {
+    if (code != 0) return g.error(what);
+    return Unit{};
 }
+
+char grb_type(VarType t) {
+    switch (t) {
+    case VarType::Binary: return GRB_BINARY;
+    case VarType::Integer: return GRB_INTEGER;
+    case VarType::Continuous: return GRB_CONTINUOUS;
+    }
+    return GRB_CONTINUOUS;
+}
+
+char grb_sense(Sense s) {
+    switch (s) {
+    case Sense::LessEqual: return GRB_LESS_EQUAL;
+    case Sense::GreaterEqual: return GRB_GREATER_EQUAL;
+    case Sense::Equal: return GRB_EQUAL;
+    }
+    return GRB_EQUAL;
+}
+
+double clamp_bound(double v) {
+    if (v >= 1e30) return GRB_INFINITY;
+    if (v <= -1e30) return -GRB_INFINITY;
+    return v;
+}
+
+} // namespace
+
+Result<Gurobi> Gurobi::open(std::string const &log_file, int threads) {
+    auto impl = std::make_unique<GurobiImpl>();
+    if (GRBemptyenv(&impl->env) != 0 || impl->env == nullptr)
+        return err("Gurobi: cannot create an environment");
+    // Before starting the environment, so not even the license banner reaches stdout
+    TRY_VOID(check(*impl, GRBsetintparam(impl->env, "LogToConsole", 0), "LogToConsole"));
+    if (!log_file.empty())
+        TRY_VOID(check(*impl, GRBsetstrparam(impl->env, "LogFile", log_file.c_str()), "LogFile"));
+    if (threads > 0)
+        TRY_VOID(check(*impl, GRBsetintparam(impl->env, "Threads", threads), "Threads"));
+    if (GRBstartenv(impl->env) != 0) return impl->error("cannot start (license?)");
+    TRY_VOID(check(*impl,
+                   GRBnewmodel(impl->env, &impl->model, "mlrcs", 0, nullptr, nullptr, nullptr,
+                               nullptr, nullptr),
+                   "cannot create a model"));
+    return Gurobi(std::move(impl));
+}
+
+Result<std::int32_t> Gurobi::add_vars(std::int32_t count, double lb, double ub, double obj,
+                                      VarType type) {
+    auto &g = *impl_;
+    std::int32_t const first = g.vars;
+    if (count <= 0) return first;
+    std::vector<double> lbs(count, clamp_bound(lb)), ubs(count, clamp_bound(ub)), objs(count, obj);
+    std::vector<char> types(count, grb_type(type));
+    TRY_VOID(check(g,
+                   GRBaddvars(g.model, count, 0, nullptr, nullptr, nullptr, objs.data(),
+                              lbs.data(), ubs.data(), types.data(), nullptr),
+                   "add variables"));
+    g.vars += count;
+    return first;
+}
+
+Result<Unit> Gurobi::add_constr(std::vector<std::int32_t> const &ind,
+                                std::vector<double> const &val, Sense sense, double rhs) {
+    auto &g = *impl_;
+    if (ind.size() != val.size()) return err("Gurobi::add_constr: size mismatch");
+    // int and std::int32_t are the same type on every platform we build for
+    static_assert(sizeof(int) == sizeof(std::int32_t));
+    return check(g,
+                 GRBaddconstr(g.model, static_cast<int>(ind.size()),
+                              const_cast<int *>(reinterpret_cast<int const *>(ind.data())),
+                              const_cast<double *>(val.data()), grb_sense(sense), rhs, nullptr),
+                 "add constraint");
+}
+
+Result<Unit> Gurobi::add_constrs(RowBatch const &rows) {
+    auto &g = *impl_;
+    auto const count = rows.beg.size();
+    if (count == 0) return Unit{};
+    if (rows.sense.size() != count || rows.rhs.size() != count || rows.ind.size() != rows.val.size())
+        return err("Gurobi::add_constrs: size mismatch");
+    if (rows.ind.size() > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+        return err("Gurobi::add_constrs: too many nonzeros in one batch");
+    std::vector<char> senses(count);
+    for (std::size_t r = 0; r < count; ++r) senses[r] = grb_sense(rows.sense[r]);
+    static_assert(sizeof(int) == sizeof(std::int32_t));
+    return check(g,
+                 GRBaddconstrs(g.model, static_cast<int>(count), static_cast<int>(rows.ind.size()),
+                               const_cast<int *>(reinterpret_cast<int const *>(rows.beg.data())),
+                               const_cast<int *>(reinterpret_cast<int const *>(rows.ind.data())),
+                               const_cast<double *>(rows.val.data()), senses.data(),
+                               const_cast<double *>(rows.rhs.data()), nullptr),
+                 "add constraints");
+}
+
+std::int32_t Gurobi::num_vars() const { return impl_->vars; }
+
+Result<Unit> Gurobi::reset_model() {
+    auto &g = *impl_;
+    if (g.model != nullptr) GRBfreemodel(g.model);
+    g.model = nullptr;
+    g.vars = 0;
+    return check(g,
+                 GRBnewmodel(g.env, &g.model, "mlrcs", 0, nullptr, nullptr, nullptr, nullptr,
+                             nullptr),
+                 "cannot create a model");
+}
+
+Result<Unit> Gurobi::set_int_param(char const *name, int value) {
+    return check(*impl_, GRBsetintparam(impl_->model_env(), name, value), name);
+}
+
+Result<Unit> Gurobi::set_double_param(char const *name, double value) {
+    return check(*impl_, GRBsetdblparam(impl_->model_env(), name, value), name);
+}
+
+Result<Unit> Gurobi::set_start(std::vector<double> const &start) {
+    auto &g = *impl_;
+    if (static_cast<std::int32_t>(start.size()) != g.vars)
+        return err("Gurobi::set_start: wrong number of values");
+    if (g.vars == 0) return Unit{};
+    return check(g,
+                 GRBsetdblattrarray(g.model, GRB_DBL_ATTR_START, 0, g.vars,
+                                    const_cast<double *>(start.data())),
+                 "set MIP start");
+}
+
+Result<Unit> Gurobi::write(std::string const &path) {
+    TRY_VOID(check(*impl_, GRBupdatemodel(impl_->model), "update model"));
+    return check(*impl_, GRBwrite(impl_->model, path.c_str()), "write model");
+}
+
+Result<SolveResult> Gurobi::solve(double seconds) {
+    auto &g = *impl_;
+    auto const start = std::chrono::steady_clock::now();
+    if (seconds < 0.1) seconds = 0.1;
+    TRY_VOID(set_double_param("TimeLimit", seconds));
+
+    // Watchdog: GRBterminate at the deadline (safe to call from another thread)
+    std::mutex mutex;
+    std::condition_variable done_cv;
+    bool done = false;
+    GRBmodel *const model = g.model;
+    std::thread watchdog([&mutex, &done_cv, &done, model, start, seconds] {
+        std::unique_lock<std::mutex> lock(mutex);
+        auto const deadline = start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                          std::chrono::duration<double>(seconds));
+        if (!done_cv.wait_until(lock, deadline, [&done] { return done; })) GRBterminate(model);
+    });
+    int const rc = GRBoptimize(g.model);
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        done = true;
+    }
+    done_cv.notify_all();
+    watchdog.join();
+    TRY_VOID(check(g, rc, "optimize"));
+
+    SolveResult r;
+    r.seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    int status = 0;
+    TRY_VOID(check(g, GRBgetintattr(g.model, GRB_INT_ATTR_STATUS, &status), "status"));
+    switch (status) {
+    case GRB_OPTIMAL: r.status = SolveStatus::Optimal; break;
+    case GRB_TIME_LIMIT:
+    case GRB_INTERRUPTED: r.status = SolveStatus::TimeLimit; break;
+    case GRB_INFEASIBLE:
+    case GRB_INF_OR_UNBD: r.status = SolveStatus::Infeasible; break;
+    default: r.status = SolveStatus::Other; break;
+    }
+    int solutions = 0;
+    TRY_VOID(check(g, GRBgetintattr(g.model, GRB_INT_ATTR_SOLCOUNT, &solutions), "SolCount"));
+    if (GRBgetdblattr(g.model, GRB_DBL_ATTR_OBJBOUND, &r.bound) != 0) r.bound = -GRB_INFINITY;
+    r.has_bound = std::isfinite(r.bound) && std::fabs(r.bound) < GRB_INFINITY;
+    if (solutions > 0 && g.vars > 0) {
+        r.has_solution = true;
+        TRY_VOID(check(g, GRBgetdblattr(g.model, GRB_DBL_ATTR_OBJVAL, &r.objective), "ObjVal"));
+        r.x.resize(g.vars);
+        TRY_VOID(check(g, GRBgetdblattrarray(g.model, GRB_DBL_ATTR_X, 0, g.vars, r.x.data()), "X"));
+    }
+    return r;
+}
+
+#else // no Gurobi at build time
+
+struct GurobiImpl {
+    std::int32_t vars = 0;
+};
+
+Result<Gurobi> Gurobi::open(std::string const &, int) {
+    return err("this mlrcs was built without Gurobi; set GUROBI_HOME and rebuild to use -e");
+}
+Result<std::int32_t> Gurobi::add_vars(std::int32_t, double, double, double, VarType) {
+    return err("no Gurobi");
+}
+Result<Unit> Gurobi::add_constr(std::vector<std::int32_t> const &, std::vector<double> const &,
+                                Sense, double) {
+    return err("no Gurobi");
+}
+std::int32_t Gurobi::num_vars() const { return impl_->vars; }
+Result<Unit> Gurobi::add_constrs(RowBatch const &) { return err("no Gurobi"); }
+Result<Unit> Gurobi::reset_model() { return err("no Gurobi"); }
+Result<Unit> Gurobi::set_int_param(char const *, int) { return err("no Gurobi"); }
+Result<Unit> Gurobi::set_double_param(char const *, double) { return err("no Gurobi"); }
+Result<Unit> Gurobi::set_start(std::vector<double> const &) { return err("no Gurobi"); }
+Result<Unit> Gurobi::write(std::string const &) { return err("no Gurobi"); }
+Result<SolveResult> Gurobi::solve(double) { return err("no Gurobi"); }
+
+#endif
+
+Gurobi::Gurobi(std::unique_ptr<GurobiImpl> impl) : impl_(std::move(impl)) {}
+Gurobi::Gurobi(Gurobi &&) noexcept = default;
+Gurobi &Gurobi::operator=(Gurobi &&) noexcept = default;
+Gurobi::~Gurobi() = default;

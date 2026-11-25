@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "clock.hpp"
+#include "gurobi.hpp"
 #include "heuristic.hpp"
 #include "opgraph.hpp"
 #include "result.hpp"
@@ -26,9 +27,7 @@ struct EndsOptions {
 };
 
 struct IlpOptions {
-    std::string gurobi_cl;   // from find_gurobi_cl()
-    std::string keep_dir;    // keep the LP/solution/log files here; empty: temporary, deleted
-    int threads = 0;         // Gurobi Threads parameter; 0 = Gurobi's default
+    std::string keep_dir;    // also write every model here (.lp); empty: no files
     EndsOptions ends;
     std::int64_t max_vars = 400'000; // do not build a model larger than this
     // ... nor one with more (estimated) nonzeros: Gurobi's memory grows with them (dense fan-in
@@ -56,11 +55,13 @@ struct ExactResult {
     std::int64_t num_nonzeros = 0; // estimated constraint nonzeros of the last ILP built
     std::int32_t solves = 0;   // Gurobi runs
     std::int32_t ends_bound = 0; // lower bound from the end relaxations (0: not run)
+    double build_seconds = 0;  // building step models through the C API
     std::string note;          // solver trouble that was survived, for --stats
 };
 
 // Starts from the heuristic schedule (latency U) and asks Gurobi whether a schedule with horizon
 // U - 1 exists, repeating until the answer is no (U is optimal) or U meets the lower bound.
 // Never fails: on any solver trouble the best schedule found so far is returned.
-ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic,
+// `gurobi`: an open environment; its model is replaced for every solve.
+ExactResult exact_schedule(OpGraph const &g, HeuristicResult const &heuristic, Gurobi &gurobi,
                            IlpOptions const &options, Clock const &clock);
