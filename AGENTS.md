@@ -5,11 +5,11 @@
 - `-h`：heuristic（例如 list scheduling），要快，latency 要盡量接近最佳。
 - `-e`：以 `-h` 的結果為基礎，寫成 ILP，用 Gurobi 求出 exact 解。要在時限內證明最佳的 case 越多越好；證明不了時，也要輸出目前找到最好的合法排程。
 
-題目見 [docs/Project04/Project04.md](docs/Project04/Project04.md)（[PDF](docs/Project04.pdf)），BLIF 格式見 [docs/BLIF/BLIF.md](docs/BLIF/BLIF.md)。
+題目見 [docs/Project04/Project04.md](docs/Project04/Project04.md)（[PDF](docs/Project04.pdf)），BLIF 格式見 [docs/BLIF/BLIF.md](docs/BLIF/BLIF.md)。助教 11/19 公布的作業說明（建置、輸出檔、交件、評分）見 [docs/Project4 Requirement/Project4 Requirement.md](docs/Project4%20Requirement/Project4%20Requirement.md)，與這份文件衝突時以它為準。
 
 除了程式，還要交：
-- 一個自己設計的測資，讓 `-h` 與 `-e` 的 latency 不同。
-- 最多 3 頁的報告，內容包含：
+- 一個自己設計的測資，讓 `-h` 與 `-e` 的 latency 不同，放在 `testcase/`。交件前一定要用最終版本的程式重新確認仍有差異（heuristic 變強後，差異測資已經失效過兩次）。
+- 最多 3 頁的報告（PDF，`學號.pdf`，與 tarball 分開上傳），內容包含：
   - heuristic 演算法與 ILP 模型，說明 precedence 與 resource 限制怎麼表達、heuristic 結果怎麼用在 ILP 裡；
   - 開發過程中的設計選擇與改進，要有實驗佐證；
   - 兩種方法在相同輸入、相同限制下的 latency 與 runtime 比較；
@@ -22,45 +22,53 @@
 
 規格以 docs 為準，這裡補充容易出錯、或 docs 沒寫清楚的地方。
 
+- **只評分輸出檔，stdout 不看**：`-h` 寫出 `<BLIF 檔名去掉副檔名>_h.out`，`-e` 寫出 `<…>_e.out`，都寫在目前目錄（評測時是 `build/`，BLIF 也複製在那裡）。例如 `sample02.blif` → `sample02_h.out`。骨架以「先寫暫存檔再 rename」的方式寫入，檔案隨時都是完整的排程；stdout 另外印一份方便看。
 - 輸出格式要與題目範例逐字一致：
   - 標題：`-h` 是 `Heuristic Scheduling Result`，`-e` 是 `ILP-based Scheduling Result`；
   - 每一步一行 `t: {AND} {OR} {NOT}`，空集合寫 `{}`；
   - 最後兩行是 `LATENCY: n` 與 `END`。
   - 同一個大括號內的順序，題目沒有規定。骨架依 BLIF 中的定義順序輸出，與範例一致。
 - PI 不是 operation，step 0 就可以使用；operation 的 step 從 1 開始。
-- 只能透過 `gurobi_cl` 命令列使用 Gurobi：寫出 LP 檔，再讀回解檔。不要 link Gurobi 的 C/C++ library，因為評測環境不一定有 header，路徑也可能不同。
-- `-e` 必須先確認 `gurobi_cl` 存在而且能執行，否則印出錯誤訊息並以非 0 結束（骨架已經實作）。
+- `-e` 只能用 Gurobi，透過 **C API**（`gurobi_c.h`）link。`CMakeLists.txt` 必須經由環境變數 `GUROBI_HOME` 找 `$ENV{GUROBI_HOME}/include` 與 `$ENV{GUROBI_HOME}/lib`，不能寫死絕對路徑或版本相關的檔名（如 `libgurobi130.so`）；骨架用 glob 找最新的 `libgurobiNNN.so`，並以 RPATH 讓 `build/mlrcs` 不需要 `LD_LIBRARY_PATH`。不用 C++ API（`libgurobi_c++.a` 與編譯器版本綁定）。
+  - 沒有 `GUROBI_HOME` 時仍然可以 build（`-h` 照常可用），`-e` 則印出錯誤訊息並以非 0 結束。
+  - `-e` 一開始就啟動 Gurobi 環境（含 license 檢查），失敗就印出錯誤訊息並以非 0 結束。
 - `-e` 的結果絕不能比 `-h` 差。最後一定要輸出一個合法排程：Gurobi 逾時、被中斷，或模型太大而沒有求解時，都要輸出目前最好的解。
-- 建置設定（沿用前幾次作業的規定，Project 4 的 PDF 沒有另外寫明）：
-  - C++17、CMake。
+- 建置與執行流程（作業說明）：在專案根目錄 `cmake -B build && cmake --build build`，執行檔必須是 `build/mlrcs`；接著 `cd build`，以 `./mlrcs -h sample02.blif 2 1 1` 的方式執行。
+  - C++17、CMake（3.18 以上）、Linux GCC。
   - server 不會指定 `CMAKE_BUILD_TYPE`，所以 `CMakeLists.txt` 要自己預設 Release。
   - 不要用 `-march=native`。
-  - 評測環境沒有網路，也沒有預裝的第三方 library。
+  - 評測環境沒有網路，除了 Gurobi 之外沒有預裝的第三方 library。
   - build 限時 60 秒（目前 clean build 約 12 秒）。
 - 時間限制：每個 case 60 秒，包含 I/O 與 Gurobi。程式用 wall clock 自行控制，預設總預算 `--time 55`。
-  - Gurobi 只會偶爾檢查 TimeLimit：在 presolve 與 root LP 時，可能超時 10 秒以上。所以骨架到時間會先送 SIGINT，再送 SIGKILL。
+  - Gurobi 只會偶爾檢查 TimeLimit：在 presolve 與 root LP 時，可能超時 10 秒以上。所以骨架另外有 watchdog thread，到時間呼叫 `GRBterminate`。
+  - 最後防線：`-e` 在呼叫 Gurobi 之前，就先把 heuristic 的排程寫進輸出檔；`HardDeadline` 在預算後 2.5 秒直接結束行程（`_Exit(0)`），此時輸出檔仍是合法排程。自己寫的耗時演算法（包括 `-h`）也要照這個原則：輸出檔要盡早有一份合法排程。
   - 評測機器可能比我們慢，時間要留餘裕。
 - 多執行緒：評測機器的核心數未知，Gurobi 的 `Threads` 預設由 Gurobi 自行決定。自己寫的平行化必須確認在 1 核下不會變差。
-- 交件：學號命名的 `.tgz`，內含 C/C++ 原始碼與一個純文字 ReadMe，說明如何編譯、執行。
+- 參數缺少或不合法時，要印出錯誤訊息（骨架已經實作）。
+- 交件（最後打包，不急）：目錄 `學號/` 內只有 `src/`、`testcase/`、`CMakeLists.txt`、`ReadMe`，壓成 `學號.tgz`，不含 `build/`。
+  - `ReadMe` 打包時才寫，內容是助教要求的資訊：如何編譯、執行，以及 `testcase/` 的差異測資要用哪組資源限制跑。它和 repo 的 `README.md` 不同：`README.md` 是給任何點進 GitHub 的人看的專案介紹。
 - 可以參考論文、講義與網路上的演算法，但不得直接複製他人的程式碼，包括同學、往年作品與開源 scheduler。
 
-# 評分方式（推測）
+# 評分方式
 
-Project 4 的評分方式還沒公布，以下參考 Project 2 的評分標準（`~/data/school/ntust/115-1 .../Grading Criteria_*.pdf`）：
-- 用隱藏測資評分，「能在時限內跑完、輸出通過 verifier」是主要分數；
-- 報告約佔 10 分；
-- 老師的立場是「你應該自己掌握演算法的複雜度」。
+作業說明（11/19）公布的評分項目，權重還沒定：
+- `-e` 的結果是否為最佳解；
+- `-h` 的排程是否合法；
+- `-h` 的 latency 與 `-e` 最佳解的差距，**其中一部分可能依同學之間的排名給分**；
+- 報告。
+
+助教不提供額外測資（只有 Project04.pdf 的 `sample02.blif`），隱藏測資的規模未知。
 
 因此優先順序是：
-1. **穩健**：任何合法輸入、任何資源限制，都要在時限內輸出合法排程，不能 crash，也不能逾時。
-2. **正確**：`-e` 在能證明最佳的情況下，輸出的確實是最佳解。
-3. **品質**：目標只有 minimize latency。`-h` 的 latency 越低越好；`-e` 在時限內證明最佳的 case 越多越好，證明不了時 latency 也要盡量低。runtime 只是 60 秒的硬限制，不是額外的目標；在時限內，時間可以盡量拿來換取更低的 latency。
+1. **穩健、合法**：任何合法輸入、任何資源限制，都要在時限內寫出合法排程的輸出檔，不能 crash，也不能逾時。這是最重要的。
+2. **`-e` 最佳**：`-e` 能證明最佳的 case 越多越好；證明不了時 latency 也要盡量低。輸出的「最佳解」必須真的是最佳。
+3. **`-h` 品質**：目標只有 minimize latency，越接近最佳越好，而且要和同學比。runtime 只是 60 秒的硬限制，不是額外的目標；在時限內，時間可以盡量拿來換取更低的 latency。
 
-在助教回覆之前，先假設隱藏測資的規模與 `benchmark/` 相當（最大約 1.5 萬個 operation）。即使如此，仍要考慮最壞情況的複雜度與記憶體，至少不能 crash 或逾時。
+隱藏測資的規模未知：以 `benchmark/`（最大約 1.5 萬個 operation）與自製難測資為主要指標，但要考慮最壞情況的複雜度與記憶體，更大的輸入至少不能 crash 或逾時。
 
-## 研究重點：heuristic 優先
+## 研究重點：heuristic 與 ILP 並重
 
-`-e` 的結果不會比 `-h` 差，所以 heuristic 越好，兩種模式都受益。在助教說明 ILP 是否計分之前，研究以 `-h` 為主；ILP 只做讓 `-e` 能用、不出錯所需的改進，不要再花整個階段在 formulation 的消融實驗上。
+`-e` 是否最佳與 `-h` 的品質都計分。`-e` 的結果不會比 `-h` 差，所以 heuristic 越好，兩種模式都受益；同時 `-e` 要把證明最佳的 case 數拉高（更緊的 lower bound、更小更緊的 ILP、更聰明地使用 60 秒）。
 
 benchmark 對 heuristic 太容易：測資幾乎都是資源主導，claude@55567d1 的 `-h` 在 76 個 case 中，已經有 72 個等於 lower bound（`latency / best_known` 的幾何平均是 1.00001），只剩 big2 有 0.4% 以內的差距。所以在 benchmark 上擠最後一點已經沒有意義，重點改為：
 
@@ -85,9 +93,10 @@ benchmark 對 heuristic 太容易：測資幾乎都是資源主導，claude@5556
 ```
 Project4/                 main（只放共用環境；研究在各自的 worktree）
 ├── AGENTS.md, CLAUDE.md  研究規範（CLAUDE.md 只是引用 AGENTS.md）
-├── README.md             交件用的 ReadMe（各路線可修改）
+├── README.md             給 GitHub 讀者的專案介紹（不是交件的 ReadMe）
 ├── docs/                 題目與 BLIF 格式（PDF 與 markdown）
 ├── benchmark/            課程提供的測資；自製測資也放這裡
+├── testcase/             交件用的差異測資（`-h` 與 `-e` latency 不同）
 ├── CMakeLists.txt, src/  mlrcs 共用骨架（見下方），在各自的 branch 上發展
 ├── tools/                共用工具（見下方）
 ├── shared/   (ignored)   三條路線共用：questions.md、best.tsv、papers/、tmp/
@@ -100,9 +109,11 @@ Project4/                 main（只放共用環境；研究在各自的 worktre
 
 骨架可以直接編譯、執行，輸出也能通過 checker。各自的 branch 可以任意修改或重寫。
 
-- `CMakeLists.txt`：預設 Release，輸出 `build/mlrcs`，自動收錄 `src/**/*.cpp`；`-DMLRCS_SANITIZERS=ON` 可以開 ASan / UBSan。
+- `CMakeLists.txt`：預設 Release，輸出 `build/mlrcs`，自動收錄 `src/**/*.cpp`；經由 `GUROBI_HOME` link Gurobi C API（找不到就定義不出 `MLRCS_HAVE_GUROBI`，`-e` 會報錯）；`-DMLRCS_SANITIZERS=ON` 可以開 ASan / UBSan。
 - `main.cpp`：
   - CLI 為 `mlrcs -h|-e BLIF AND OR NOT [--time 55] [--threads N] [--keep DIR] [--stats]`；
+  - 排程寫進 `<BLIF stem>_h.out` / `_e.out`（`write_output`，原子寫入），stdout 另外印一份；
+  - `-e` 先寫入 heuristic 的排程，再啟動 `HardDeadline`，最後覆寫成 ILP 的結果；
   - `--stats` 會在 stderr 印出一行 `mlrcs-stats key=value ...`，供 `eval.py` 讀取。
 - `result.hpp`：`Result<T>`、`Error`，以及 `TRY` / `TRY_VOID` 巨集。
 - `netlist.hpp`：以 SoA 存放的 `Netlist`。
@@ -119,29 +130,30 @@ Project4/                 main（只放共用環境；研究在各自的 worktre
   - `asap`、`alap`；
   - `lower_bound`：critical path 與 `ceil(ops_k / limit_k)` 取大者，很弱，有很大的改進空間。
 - `heuristic.cpp`：`list_schedule`，最基本的 list scheduling。priority 是 height（到 sink 的最長路徑），同分時取 id 較小者。
-- `gurobi.hpp`：
-  - `find_gurobi_cl`：在 PATH 與 `$GUROBI_HOME/bin` 中尋找，並實際執行 `--version` 確認能跑。
-  - `ScratchDir`：暫存目錄，結束時刪除；給 `--keep` 時保留。
-  - `run_gurobi`：以子行程執行，時間到先 SIGINT、再 SIGKILL；讀回 `.sol` 解檔。
+- `gurobi.hpp`：C API 的薄包裝 `Gurobi`（header 不含任何 Gurobi 型別，沒有 Gurobi 也能編譯）。
+  - `Gurobi::open`：建立環境（關掉 console log，`--keep` 時寫 log 檔）並檢查 license；
+  - `add_vars`、`add_constr`、`set_start`（MIP start）、`set_int_param` / `set_double_param`、`write`（除錯用，寫出 `.lp`）；
+  - `solve(seconds)`：設 TimeLimit，另外由 watchdog thread 在期限呼叫 `GRBterminate`；回傳狀態、解、ObjBound。
+  - 需要 callback（例如即時拿到新的 incumbent）時，自行擴充這個包裝。
 - `ilp.cpp`：`exact_schedule`，最基本的 time-indexed ILP。
   - 每個 operation 的 binary 變數只開在 `[ASAP, ALAP(L_h)]` 時間窗內，`L_h` 是 heuristic 的 latency；
   - heuristic 的解當作 MIP start；
   - `L_h` 等於 lower bound 時直接跳過 ILP（status `bound`）；
   - 變數超過 300 萬個時不求解（status `too_large`）。
-  - 目前在中大型 case 上，Gurobi 光 presolve 與 root LP 就會用完時間（例如 `t481:1,1,1` 有 84 萬個變數，LP 檔 113 MB），也幾乎沒有改進過 heuristic 的解。這是 `-e` 主要的研究題目。
+  - 在中大型 case 上，Gurobi 光 presolve 與 root LP 就會用完時間（例如 `t481:1,1,1` 有 84 萬個變數）。各路線的改進（barrier、presolve 設定、更強的 lower bound 等）見各自的 notes。
 
 ## 工具
 
 - `python3 tools/eval.py [--src DIR] [--mode h,e] [cases...] [--tsv FILE] [--note ...]`：照評測流程評估。
-  - 先把 `CMakeLists.txt` 與 `src/` 複製到 `shared/tmp/` 下的全新目錄，從頭 build 並計時。
-  - 接著逐一執行每個 case（每次 60 秒逾時），再用 `check.py` 驗證；每個 case 跑完就把一列寫進 `--tsv`。
+  - 先把 `CMakeLists.txt` 與 `src/` 複製到 `shared/tmp/` 下的全新目錄，從頭 build 並計時（`GUROBI_HOME` 沒設時自動設成 `/opt/gurobi`）。
+  - 接著逐一執行每個 case（每次 60 秒逾時）：和評測一樣，把 BLIF 複製到執行目錄、在該目錄下執行，再用 `check.py` 驗證寫出的 `_h.out` / `_e.out`（不看 stdout）；沒有輸出檔記為 `NO_OUTPUT`。每個 case 跑完就把一列寫進 `--tsv`。
   - case 寫成 `BENCH:AND,OR,NOT`，例如 `aoi_C1355:2,2,1`；BENCH 也可以是 `.blif` 檔的路徑。`--list` 列出預設 suite。
   - 用 `taskset` 綁定 CPU：branch `claude` 用 CPU 0–3、`codex` 用 4–7、其他用 8–11；Gurobi 預設 `--threads 4`。三條路線同時跑分也不會互相干擾。
   - 跑完整個 suite 的 `-e` 最多約 76 × 60 秒，大約要一個多小時。平常先用代表性的子集，正式記錄時才跑全部。
 - `python3 tools/check.py BLIF AND OR NOT OUTPUT [--mode h|e]`：獨立的 checker。
   - 自行重新解析 BLIF，檢查格式、每個 operation 恰好出現一次、種類正確、precedence、resource，以及 LATENCY。
   - 指標一律以 checker 的結果為準，不要只相信 `mlrcs` 自己印出的數字。
-- Gurobi 安裝在 `/opt/gurobi`（13.0.3，academic license，沒有規模限制）。非互動式 shell 不會讀 `~/.bashrc`，要手動 `export PATH=/opt/gurobi/bin:$PATH LD_LIBRARY_PATH=/opt/gurobi/lib`；`eval.py` 會自動補上。
+- Gurobi 安裝在 `/opt/gurobi`（13.0.3，academic license，沒有規模限制）。自己 build 時要 `export GUROBI_HOME=/opt/gurobi`（非互動式 shell 不會讀 `~/.bashrc`）；執行時靠 RPATH，不需要 `LD_LIBRARY_PATH`。`eval.py` 會自動補上 `GUROBI_HOME`。
 - 之後的 Python 工具若需要第三方套件，一律用 PEP 723 宣告，以 `uv run` 執行。
 - 共用工具有 bug 或需要新功能時，告訴使用者，或直接修改後在 `shared/questions.md` 說明，不要在自己的 branch 偷偷分歧。
 
@@ -174,7 +186,7 @@ Project4/                 main（只放共用環境；研究在各自的 worktre
 
 ## 自製測資
 
-讓 `-h` 與 `-e` 結果不同的測資，放在 `benchmark/` 並 commit 到自己的 branch。要附上生成方式（腳本或說明），讓別人也能用。
+讓 `-h` 與 `-e` 結果不同的候選測資，放在 `benchmark/` 並 commit 到自己的 branch，附上生成方式（腳本或說明），讓別人也能用。最後交件的那一個放在 `testcase/`，連同資源限制與兩種模式的 latency 記在 `testcase/README.md`（打包時不放進 tarball，資訊寫進 `ReadMe`）。
 
 # 省 token 的工作方式
 

@@ -4,14 +4,13 @@
 #include <string>
 
 #include "clock.hpp"
+#include "gurobi.hpp"
 #include "netlist.hpp"
 #include "result.hpp"
 #include "schedule.hpp"
 
 struct IlpOptions {
-    std::string gurobi_cl;   // from find_gurobi_cl()
-    std::string keep_dir;    // keep the LP/solution/log files here; empty: temporary, deleted
-    int threads = 0;         // Gurobi Threads parameter; 0 = Gurobi's default
+    std::string keep_dir;    // also write the model here as model.lp; empty: no files
     std::int64_t max_vars = 3'000'000; // skip the ILP if the model would be larger
 };
 
@@ -33,6 +32,7 @@ struct ExactResult {
 };
 
 // Baseline time-indexed ILP. The heuristic schedule supplies the latency upper bound (which
-// limits every operation's [ASAP, ALAP] window) and a MIP start.
+// limits every operation's [ASAP, ALAP] window) and a MIP start. `gurobi` must hold an empty
+// model; the ILP is built into it.
 Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedule const &heuristic,
-                                   IlpOptions const &options, Clock const &clock);
+                                   Gurobi &gurobi, IlpOptions const &options, Clock const &clock);

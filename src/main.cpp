@@ -1,9 +1,17 @@
 #include <cerrno>
 #include <cstdio>
+#include <chrono>
+#include <condition_variable>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <mutex>
+#include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
+#include <thread>
 
 #include "blif.hpp"
 #include "clock.hpp"
@@ -18,11 +26,13 @@ namespace {
 constexpr char const *USAGE =
     "usage: mlrcs -h|-e BLIF_FILE AND_CONSTRAINT OR_CONSTRAINT NOT_CONSTRAINT [options]\n"
     "  -h               heuristic (list scheduling)\n"
-    "  -e               exact (ILP, solved with gurobi_cl)\n"
+    "  -e               exact (ILP, solved with Gurobi)\n"
+    "The schedule is written to <BLIF base name>_h.out or _e.out in the current directory\n"
+    "(and also printed to stdout).\n"
     "options:\n"
     "  --time SECONDS   wall-clock budget for the whole run (default 55)\n"
     "  --threads N      Gurobi threads (default: Gurobi's choice)\n"
-    "  --keep DIR       keep the ILP model, MIP start, solution and Gurobi log in DIR\n"
+    "  --keep DIR       write the ILP model (model.lp) and the Gurobi log (gurobi.log) to DIR\n"
     "  --stats          print one line of statistics to stderr\n";
 
 enum class Mode { Heuristic, Exact };
@@ -85,13 +95,85 @@ Result<Options> parse_args(int argc, char **argv) {
     return o;
 }
 
+namespace fs = std::filesystem;
+
+// The graded output: <BLIF base name>_h.out or _e.out in the current directory
+std::string output_path(Options const &o) {
+    return fs::path(o.blif).stem().string() + (o.mode == Mode::Heuristic ? "_h.out" : "_e.out");
+}
+
+// Writes the schedule to `path` atomically (temporary file, then rename), so the file always
+// holds a complete schedule, even if the program is killed while writing.
+Result<Unit> write_output(std::string const &path, Netlist const &n, Schedule const &s,
+                          char const *title) {
+    std::ostringstream text;
+    print_schedule(text, n, s, title);
+    auto const tmp = path + ".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+        if (!out) return err("cannot write " + tmp);
+        out << text.str();
+        out.flush();
+        if (!out) return err("cannot write " + tmp);
+    }
+    std::error_code ec;
+    fs::rename(tmp, path, ec);
+    if (ec) return err("cannot rename " + tmp + " to " + path + ": " + ec.message());
+    return Unit{};
+}
+
+// Last resort against overrunning the time limit (a solver call that does not return): once the
+// output file holds a valid schedule, ends the process at the hard deadline. The file is written
+// atomically, so it is complete at any moment.
+class HardDeadline {
+public:
+    explicit HardDeadline(double seconds_from_now)
+        : thread_([this, seconds_from_now] {
+              std::unique_lock<std::mutex> lock(mutex_);
+              auto const deadline =
+                  std::chrono::steady_clock::now() +
+                  std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                      std::chrono::duration<double>(seconds_from_now));
+              if (!cv_.wait_until(lock, deadline, [this] { return done_; })) {
+                  std::cerr << "mlrcs: hard deadline reached; the output file holds the best "
+                               "schedule found\n";
+                  std::_Exit(0);
+              }
+          }) {}
+    HardDeadline(HardDeadline const &) = delete;
+    HardDeadline &operator=(HardDeadline const &) = delete;
+    ~HardDeadline() {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            done_ = true;
+        }
+        cv_.notify_all();
+        thread_.join();
+    }
+
+private:
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    bool done_ = false;
+    std::thread thread_; // last member: starts after the others are constructed
+};
+
 Result<Unit> run(Options const &o, Clock &clock) {
     clock.budget = o.time;
+    auto const out_path = output_path(o);
 
-    // Check for Gurobi before doing any work, so a missing solver fails fast
-    std::string gurobi_cl;
+    // Start Gurobi before doing any work, so a missing solver or license fails fast
+    std::optional<Gurobi> gurobi;
     if (o.mode == Mode::Exact) {
-        TRY(gurobi_cl, find_gurobi_cl());
+        std::string log_file;
+        if (!o.keep_dir.empty()) {
+            std::error_code ec;
+            fs::create_directories(o.keep_dir, ec);
+            if (ec) return err("cannot create " + o.keep_dir + ": " + ec.message());
+            log_file = o.keep_dir + "/gurobi.log";
+        }
+        TRY(auto g, Gurobi::open(log_file, o.threads));
+        gurobi.emplace(std::move(g));
     }
 
     TRY(auto const netlist, read_blif(o.blif));
@@ -99,6 +181,7 @@ Result<Unit> run(Options const &o, Clock &clock) {
     TRY_VOID(validate(netlist, o.resources, heuristic));
 
     if (o.mode == Mode::Heuristic) {
+        TRY_VOID(write_output(out_path, netlist, heuristic, "Heuristic Scheduling Result"));
         print_schedule(std::cout, netlist, heuristic, "Heuristic Scheduling Result");
         if (o.stats)
             std::cerr << "mlrcs-stats mode=h latency=" << heuristic.latency
@@ -107,12 +190,15 @@ Result<Unit> run(Options const &o, Clock &clock) {
         return Unit{};
     }
 
+    // From here on the output file always holds a valid schedule
+    TRY_VOID(write_output(out_path, netlist, heuristic, "ILP-based Scheduling Result"));
+    HardDeadline const hard_deadline(clock.remaining() + 2.5);
+
     IlpOptions ilp;
-    ilp.gurobi_cl = gurobi_cl;
     ilp.keep_dir = o.keep_dir;
-    ilp.threads = o.threads;
-    TRY(auto const exact, exact_schedule(netlist, o.resources, heuristic, ilp, clock));
+    TRY(auto const exact, exact_schedule(netlist, o.resources, heuristic, *gurobi, ilp, clock));
     TRY_VOID(validate(netlist, o.resources, exact.schedule));
+    TRY_VOID(write_output(out_path, netlist, exact.schedule, "ILP-based Scheduling Result"));
     print_schedule(std::cout, netlist, exact.schedule, "ILP-based Scheduling Result");
     if (o.stats)
         std::cerr << "mlrcs-stats mode=e latency=" << exact.schedule.latency

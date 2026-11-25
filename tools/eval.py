@@ -10,10 +10,17 @@ A CASE is BENCH:AND,OR,NOT, e.g. aoi_C1355:2,2,1 (BENCH is a file name in benchm
 Steps:
   1. Copy CMakeLists.txt and src/ from --src into a fresh directory under shared/tmp/, run
      `cmake -B build && cmake --build build` and time it (the build must finish in 60 s).
-  2. For each case and mode, run `build/mlrcs -h|-e ... --stats` with a wall-clock timeout
-     (default 60 s), pinned with taskset to --cpu (default: by branch, see below).
-  3. Check every output with tools/check.py and write one TSV row per run (appended to --tsv
-     right after the run, so an interrupted evaluation keeps its rows).
+  2. For each case and mode, create a fresh run directory, copy the BLIF into it, and run
+     `mlrcs -h|-e NAME.blif AND OR NOT --stats` there (cwd = run directory) with a wall-clock
+     timeout (default 60 s), pinned with taskset to --cpu (default: by branch, see below).
+     As in the grader, only the output file `<BLIF stem>_h.out` / `<BLIF stem>_e.out` in the
+     cwd is graded; stdout is ignored.
+  3. Check that output file with tools/check.py and write one TSV row per run (appended to
+     --tsv right after the run, so an interrupted evaluation keeps its rows). A timeout or a
+     nonzero exit is a failure; exit 0 without the output file is reported as NO_OUTPUT.
+
+Gurobi: the build finds it through GUROBI_HOME at configure time. If GUROBI_HOME is unset and
+/opt/gurobi/include/gurobi_c.h exists, GUROBI_HOME is set to /opt/gurobi.
 
 CPU pinning (the laptop has 6 P-cores = CPUs 0-11, and E-cores 12-19): branch `claude` uses
 CPUs 0-3, `codex` 4-7, anything else 8-11. Gurobi gets --threads (default 4) threads.
@@ -88,7 +95,13 @@ def build(src, work):
 def run_case(binary, blif, limits, mode, args, work):
     out_file = work / "stdout.txt"
     err_file = work / "stderr.txt"
-    cmd = [str(binary), f"-{mode}", str(blif), *map(str, limits), "--stats"]
+    run_dir = work / "run"
+    if run_dir.exists():
+        shutil.rmtree(run_dir)
+    run_dir.mkdir(parents=True)
+    shutil.copy(blif, run_dir / blif.name)
+    result_file = run_dir / f"{blif.stem}_{mode}.out"
+    cmd = [str(binary), f"-{mode}", blif.name, *map(str, limits), "--stats"]
     if mode == "e" and args.threads:
         cmd += ["--threads", str(args.threads)]
     if args.cpu != "none":
@@ -96,7 +109,7 @@ def run_case(binary, blif, limits, mode, args, work):
     start = time.monotonic()
     with open(out_file, "w") as out, open(err_file, "w") as err:
         try:
-            r = subprocess.run(cmd, stdout=out, stderr=err, timeout=args.timeout)
+            r = subprocess.run(cmd, cwd=run_dir, stdout=out, stderr=err, timeout=args.timeout)
             code = r.returncode
         except subprocess.TimeoutExpired:
             code = None
@@ -115,7 +128,10 @@ def run_case(binary, blif, limits, mode, args, work):
     if code != 0:
         row["check"] = "ERROR " + " ".join(stderr.strip().splitlines()[-1:])[:200]
         return row
-    c = subprocess.run([sys.executable, str(CHECK), str(blif), *map(str, limits), str(out_file),
+    if not result_file.exists():
+        row["check"] = "NO_OUTPUT"
+        return row
+    c = subprocess.run([sys.executable, str(CHECK), str(blif), *map(str, limits), str(result_file),
                         "--mode", mode], capture_output=True, text=True)
     line = c.stdout.strip() or c.stderr.strip()
     if c.returncode == 0:
@@ -142,10 +158,9 @@ def main():
     if args.list:
         print("\n".join(DEFAULT_SUITE))
         return
-    # Non-interactive shells may not have sourced ~/.bashrc: add the local Gurobi install
-    if shutil.which("gurobi_cl") is None and Path("/opt/gurobi/bin/gurobi_cl").exists():
-        os.environ["PATH"] = "/opt/gurobi/bin:" + os.environ.get("PATH", "")
-        os.environ["LD_LIBRARY_PATH"] = "/opt/gurobi/lib:" + os.environ.get("LD_LIBRARY_PATH", "")
+    # CMakeLists.txt finds Gurobi through GUROBI_HOME; default to the local install
+    if "GUROBI_HOME" not in os.environ and Path("/opt/gurobi/include/gurobi_c.h").exists():
+        os.environ["GUROBI_HOME"] = "/opt/gurobi"
     src = Path(args.src).resolve()
     args.cpu = args.cpu or default_cpus(src)
     modes = [m for m in args.mode.split(",") if m]
