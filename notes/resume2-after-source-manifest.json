@@ -1,0 +1,40 @@
+{
+  "revision": "1cd27a5c3a2063c9403ab4f1a66d40f6aa2caf75",
+  "working_tree": "M  AGENTS.md\nM  CMakeLists.txt\nM  README.md\nA  \"docs/Project4 Requirement.pdf\"\nA  \"docs/Project4 Requirement/Project4 Requirement.md\"\nA  \"docs/Project4 Requirement/Project4 Requirement_meta.json\"\nMM src/gurobi.cpp\nM  src/gurobi.hpp\n M src/heuristic.cpp\n M src/heuristic.hpp\nMM src/ilp.cpp\nMM src/ilp.hpp\nMM src/main.cpp\nAM testcase/README.md\nA  testcase/claude_gap4.blif\nMM tools/eval.py\n?? notes/resume2-before-command.json\n?? notes/resume2-before-results.tsv\n?? notes/resume2-before-source-manifest.json\n?? notes/resume2-before.log\n?? notes/resume2-port.md\n?? notes/resume2_compare.py\n?? tests/check_output_contract.py\n",
+  "snapshot": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-source",
+  "files": {
+    "CMakeLists.txt": "a866e34d7481fc3b84cd3db4cd5b1b5024006ecf30352368606f6d16e2d251c7",
+    "src/blif.cpp": "ceb250c8521424c94e7d1bbc7c1fb19ae8d28e8c7aff827d4f0549851f18e507",
+    "src/blif.hpp": "1df150ca3413514e51c45d7250b272ca64b5e2cc8e1b4d319e8ff775fb8b0b00",
+    "src/bounds.cpp": "b9106284d0a218d7a8e0afc0dc105fa0b9082fecbef58d23b9ab943c7e162e2b",
+    "src/bounds.hpp": "bca18f63e1a25042c7b894b28a69102f96e16f97025a2782c1be4d8034ddc0b9",
+    "src/clock.hpp": "1f4f5d1d3bdd99c5cf52ce7ebbe0dc0581d01fcc04d3304f89e387b08a056c74",
+    "src/gurobi.cpp": "61ab941a3b84bd98cb69d75b8dde5550369922be66ccf8dd995b58f3844f1f10",
+    "src/gurobi.hpp": "6f18855f8a37199a2885c888bfc223ecd0151856997eaa12085da58047f17137",
+    "src/heuristic.cpp": "f1eeefecd460b5edf2fe8684a12e3cbac7d5004a8359533e40e334d80d87d3cc",
+    "src/heuristic.hpp": "ca3c2deb8cc98e83964da10c2e88000eedab866a28e303f841524517e8e5838d",
+    "src/ilp.cpp": "78cfccb90d0f286875f2ce007f576e88a693542f247fd34a21d3352b96f30d9d",
+    "src/ilp.hpp": "3f01893bcb55cb3cfaade82f6d33a4f1c869351102b233e5b9715c27c9f19631",
+    "src/main.cpp": "f334b0bf8ae5f826172f083d0a303102d909eeabde7d47381c3a6ef6b368fdfd",
+    "src/netlist.hpp": "d84dcaf7db1095b8d7edc1d2050f6706e572a2584f0c8ea9cec750ba570722ee",
+    "src/opgraph.cpp": "919c595711f4181ec976812e1324c0ff7a643f0dea91de14a06c8cc62cbe4838",
+    "src/opgraph.hpp": "5637991af28c31966d0066d605fc7bed4f6b0b6f18cb7d4931a9a82c66992858",
+    "src/priority_cem.cpp": "c7c41fd74d72b140bc0472cbe615cd03e6a858bf6d6564953c9606145611e633",
+    "src/priority_cem.hpp": "b371f6b500c106d57753589c3158c07ec5ef641afccadc1ed0a5ac4edddcb1e3",
+    "src/resource_order.cpp": "6230cb43d59891db14a4ce194561cdf7833623399692c97dba136e7461c284bd",
+    "src/resource_order.hpp": "ff6523d3f17f3d2f3ad64770b8f490fa29b1c80d0a3854fcde64c101450c0c6d",
+    "src/result.hpp": "f6658fbcbdfd8be8d91b9f187cee9fbc6e0adf5b7bf82251d7641c5f41dedf58",
+    "src/schedule.cpp": "817edacf8a2d84efbe7513e06ec92341d1bc0f81166f7ca7c8fbd8a6213f95e2",
+    "src/schedule.hpp": "657202711b8c583af3115e9e29a6ea09a6d594848ba57e432727e6aebf95b390",
+    "src/seed_heuristic.cpp": "19672b43c91931cff5e626ca3e79c43ffc66d2f6d675bee6ed8d388909adc0ab",
+    "src/seed_heuristic.hpp": "76ec74212672117b40f46995fd6acb01ff2c817c083c88f1337b2b6427709055",
+    "tools/check.py": "c3f6797b04a757598df4675d817ad1e3e15f7bbd9b1a2089f7b2954e4c57a3fb",
+    "tools/eval.py": "df9980543eccfbe52155923dbb56ced82e0bed9d4392cfc99f87784126d92b08"
+  },
+  "source_sha256": "7eb6083edcf8a547f2c0f2b24c478af5d848c62c8dea178a17c7e361ed5a682b",
+  "instrumentation": {
+    "file": "tools/eval.py",
+    "purpose": "per-case GNU time RSS on stderr; original scheduler source unchanged",
+    "instrumented_sha256": "8c49f98de75772c9324a5ba324a9a45f59aeae072ac5d856e0842d99e3df2f4a"
+  }
+}

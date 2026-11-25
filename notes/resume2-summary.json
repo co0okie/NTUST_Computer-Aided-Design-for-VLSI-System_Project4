@@ -1,0 +1,222 @@
+{
+  "runs_per_stage": 20,
+  "checker_rechecked": 40,
+  "before_proven": 4,
+  "after_proven": 4,
+  "latency_regressions": [],
+  "latency_improvements": [],
+  "before_total_seconds": 325.06,
+  "after_total_seconds": 334.97,
+  "before_peak_maxrss_kb": 2386096,
+  "after_peak_maxrss_kb": 2280112,
+  "outputs": {
+    "before": {
+      "aoi_t481:1,1,1 h": {
+        "maxrss_kb": 5132,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0001-aoi_t481-h/stdout.txt",
+        "sha256": "21687018fe8b47fdcb8a88a226a00a8ce15d484e9bc728346c95cdd46537dc4a"
+      },
+      "aoi_t481:1,1,1 e": {
+        "maxrss_kb": 5672,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0002-aoi_t481-e/stdout.txt",
+        "sha256": "f3915eebf123d1deae5cecbfc4636fa289df9c408f63c5e983a889a05e0e2caf"
+      },
+      "aoi_big2:1,1,1 h": {
+        "maxrss_kb": 30856,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0003-aoi_big2-h/stdout.txt",
+        "sha256": "3b1932dd913826c5a5fed99c9b642bac59db551f5d792882d4d9604c9c3970f3"
+      },
+      "aoi_big2:1,1,1 e": {
+        "maxrss_kb": 30840,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0004-aoi_big2-e/stdout.txt",
+        "sha256": "7d9ec3760e86c4d63c42c643dc5a542bb677c3dea84ca98556f092c708bb24a7"
+      },
+      "aoi_big2:2,2,1 h": {
+        "maxrss_kb": 30904,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0005-aoi_big2-h/stdout.txt",
+        "sha256": "a62ac9b127167b7653cdd32f08ae6cc1a49ced0519c070f31ededf135b028f4b"
+      },
+      "aoi_big2:2,2,1 e": {
+        "maxrss_kb": 30824,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0006-aoi_big2-e/stdout.txt",
+        "sha256": "4048d68bbb1ba0945fa8917785d4d1e22b66a78e29c7209759732cdaed84ef3b"
+      },
+      "aoi_big2:3,2,2 h": {
+        "maxrss_kb": 30576,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0007-aoi_big2-h/stdout.txt",
+        "sha256": "d1581aa6f5aeade40600cc3d169138c0b01e2a91a3ba5127e1050df733e42ab7"
+      },
+      "aoi_big2:3,2,2 e": {
+        "maxrss_kb": 30672,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0008-aoi_big2-e/stdout.txt",
+        "sha256": "c6cc32cb67fc0d9b5a6eabedc75baec8ebe06cf0ca3468358386bd6b1e859518"
+      },
+      "aoi_big2:8,8,4 h": {
+        "maxrss_kb": 30884,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0009-aoi_big2-h/stdout.txt",
+        "sha256": "b9c3138c7220d6cc28cd8c4b8e3cddfa5fafcbf41f64f0294af36475d1df004c"
+      },
+      "aoi_big2:8,8,4 e": {
+        "maxrss_kb": 30828,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0010-aoi_big2-e/stdout.txt",
+        "sha256": "1218ec9bf462ca4a197eea5298f671f6510ee7cf104194d3ad86fac5a123efaa"
+      },
+      "aoi_C1355:3,2,2 h": {
+        "maxrss_kb": 4820,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0011-aoi_C1355-h/stdout.txt",
+        "sha256": "3bb8235de627b742304963830bc4474355321472f17a2087dc25b1bcc985d557"
+      },
+      "aoi_C1355:3,2,2 e": {
+        "maxrss_kb": 2386096,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0012-aoi_C1355-e/stdout.txt",
+        "sha256": "0a90919c623f08f7703cfe81ad136fad705cb3770cb1ba34fdcaa5c181cfdd43"
+      },
+      "layered_s129_n252:5,3,2 h": {
+        "maxrss_kb": 4676,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0013-layered_s129_n252-h/stdout.txt",
+        "sha256": "554c386171387be3c3eae36ddc8c78637d552666c0764bbc337dad14792b5ee9"
+      },
+      "layered_s129_n252:5,3,2 e": {
+        "maxrss_kb": 124292,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0014-layered_s129_n252-e/stdout.txt",
+        "sha256": "25402320ddea8bf03ec96b9c058b31c52c8da9569945d654770cd3dae5743dd5"
+      },
+      "funnel_s1210_n243:4,2,1 h": {
+        "maxrss_kb": 4488,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0015-funnel_s1210_n243-h/stdout.txt",
+        "sha256": "821331d8464d9ea051e2f62055b486454251dba601fe993ba340609b913056c0"
+      },
+      "funnel_s1210_n243:4,2,1 e": {
+        "maxrss_kb": 100872,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0016-funnel_s1210_n243-e/stdout.txt",
+        "sha256": "e8f1c10ca16015443f426d8410fef153148bf5c7d4b61a6254bba7a93e4cc101"
+      },
+      "layered_s1076_n851:8,8,6 h": {
+        "maxrss_kb": 5124,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0017-layered_s1076_n851-h/stdout.txt",
+        "sha256": "ca92f138cbc919f9454c5a1d4ef4e9ce92aab8d29ac37743d26b8d1019e211a7"
+      },
+      "layered_s1076_n851:8,8,6 e": {
+        "maxrss_kb": 268956,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0018-layered_s1076_n851-e/stdout.txt",
+        "sha256": "9698fdcd03e95da40a970426569bdadedebc1e902e5252c0590ce2ee2cdeb6ad"
+      },
+      "claude_gap4:3,3,3 h": {
+        "maxrss_kb": 4620,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0019-claude_gap4-h/stdout.txt",
+        "sha256": "07aa232413738357024fea483f29344c3d8da62fde58ec4bcfdedad70c3706fa"
+      },
+      "claude_gap4:3,3,3 e": {
+        "maxrss_kb": 13656,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/before-outputs/0020-claude_gap4-e/stdout.txt",
+        "sha256": "8e85620b9bd751057d7b5774f1f8542ad6e2039bfc41a37f7028cbd5c725f031"
+      }
+    },
+    "after": {
+      "aoi_t481:1,1,1 h": {
+        "maxrss_kb": 7504,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0001-aoi_t481-h/aoi_t481_h.out",
+        "sha256": "21687018fe8b47fdcb8a88a226a00a8ce15d484e9bc728346c95cdd46537dc4a"
+      },
+      "aoi_t481:1,1,1 e": {
+        "maxrss_kb": 10188,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0002-aoi_t481-e/aoi_t481_e.out",
+        "sha256": "f3915eebf123d1deae5cecbfc4636fa289df9c408f63c5e983a889a05e0e2caf"
+      },
+      "aoi_big2:1,1,1 h": {
+        "maxrss_kb": 32980,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0003-aoi_big2-h/aoi_big2_h.out",
+        "sha256": "3b1932dd913826c5a5fed99c9b642bac59db551f5d792882d4d9604c9c3970f3"
+      },
+      "aoi_big2:1,1,1 e": {
+        "maxrss_kb": 34788,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0004-aoi_big2-e/aoi_big2_e.out",
+        "sha256": "7d9ec3760e86c4d63c42c643dc5a542bb677c3dea84ca98556f092c708bb24a7"
+      },
+      "aoi_big2:2,2,1 h": {
+        "maxrss_kb": 32920,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0005-aoi_big2-h/aoi_big2_h.out",
+        "sha256": "a62ac9b127167b7653cdd32f08ae6cc1a49ced0519c070f31ededf135b028f4b"
+      },
+      "aoi_big2:2,2,1 e": {
+        "maxrss_kb": 34992,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0006-aoi_big2-e/aoi_big2_e.out",
+        "sha256": "4048d68bbb1ba0945fa8917785d4d1e22b66a78e29c7209759732cdaed84ef3b"
+      },
+      "aoi_big2:3,2,2 h": {
+        "maxrss_kb": 33024,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0007-aoi_big2-h/aoi_big2_h.out",
+        "sha256": "d1581aa6f5aeade40600cc3d169138c0b01e2a91a3ba5127e1050df733e42ab7"
+      },
+      "aoi_big2:3,2,2 e": {
+        "maxrss_kb": 35000,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0008-aoi_big2-e/aoi_big2_e.out",
+        "sha256": "c6cc32cb67fc0d9b5a6eabedc75baec8ebe06cf0ca3468358386bd6b1e859518"
+      },
+      "aoi_big2:8,8,4 h": {
+        "maxrss_kb": 33008,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0009-aoi_big2-h/aoi_big2_h.out",
+        "sha256": "b9c3138c7220d6cc28cd8c4b8e3cddfa5fafcbf41f64f0294af36475d1df004c"
+      },
+      "aoi_big2:8,8,4 e": {
+        "maxrss_kb": 34904,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0010-aoi_big2-e/aoi_big2_e.out",
+        "sha256": "1218ec9bf462ca4a197eea5298f671f6510ee7cf104194d3ad86fac5a123efaa"
+      },
+      "aoi_C1355:3,2,2 h": {
+        "maxrss_kb": 7400,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0011-aoi_C1355-h/aoi_C1355_h.out",
+        "sha256": "3bb8235de627b742304963830bc4474355321472f17a2087dc25b1bcc985d557"
+      },
+      "aoi_C1355:3,2,2 e": {
+        "maxrss_kb": 2280112,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0012-aoi_C1355-e/aoi_C1355_e.out",
+        "sha256": "0a90919c623f08f7703cfe81ad136fad705cb3770cb1ba34fdcaa5c181cfdd43"
+      },
+      "layered_s129_n252:5,3,2 h": {
+        "maxrss_kb": 6892,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0013-layered_s129_n252-h/layered_s129_n252_h.out",
+        "sha256": "554c386171387be3c3eae36ddc8c78637d552666c0764bbc337dad14792b5ee9"
+      },
+      "layered_s129_n252:5,3,2 e": {
+        "maxrss_kb": 133008,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0014-layered_s129_n252-e/layered_s129_n252_e.out",
+        "sha256": "25402320ddea8bf03ec96b9c058b31c52c8da9569945d654770cd3dae5743dd5"
+      },
+      "funnel_s1210_n243:4,2,1 h": {
+        "maxrss_kb": 6828,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0015-funnel_s1210_n243-h/funnel_s1210_n243_h.out",
+        "sha256": "821331d8464d9ea051e2f62055b486454251dba601fe993ba340609b913056c0"
+      },
+      "funnel_s1210_n243:4,2,1 e": {
+        "maxrss_kb": 102960,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0016-funnel_s1210_n243-e/funnel_s1210_n243_e.out",
+        "sha256": "e8f1c10ca16015443f426d8410fef153148bf5c7d4b61a6254bba7a93e4cc101"
+      },
+      "layered_s1076_n851:8,8,6 h": {
+        "maxrss_kb": 7848,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0017-layered_s1076_n851-h/layered_s1076_n851_h.out",
+        "sha256": "ca92f138cbc919f9454c5a1d4ef4e9ce92aab8d29ac37743d26b8d1019e211a7"
+      },
+      "layered_s1076_n851:8,8,6 e": {
+        "maxrss_kb": 268528,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0018-layered_s1076_n851-e/layered_s1076_n851_e.out",
+        "sha256": "9698fdcd03e95da40a970426569bdadedebc1e902e5252c0590ce2ee2cdeb6ad"
+      },
+      "claude_gap4:3,3,3 h": {
+        "maxrss_kb": 7048,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0019-claude_gap4-h/claude_gap4_h.out",
+        "sha256": "07aa232413738357024fea483f29344c3d8da62fde58ec4bcfdedad70c3706fa"
+      },
+      "claude_gap4:3,3,3 e": {
+        "maxrss_kb": 16140,
+        "output": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs/0020-claude_gap4-e/claude_gap4_e.out",
+        "sha256": "8e85620b9bd751057d7b5774f1f8542ad6e2039bfc41a37f7028cbd5c725f031"
+      }
+    }
+  },
+  "e_worse_than_h": {
+    "before": [],
+    "after": []
+  }
+}

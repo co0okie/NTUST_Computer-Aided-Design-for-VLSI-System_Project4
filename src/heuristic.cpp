@@ -37,7 +37,7 @@ std::vector<std::int32_t> heights(Netlist const &n) {
 
 } // namespace
 
-static Result<Schedule> height_schedule(Netlist const &n, Resources const &r) {
+Result<Schedule> fast_schedule(Netlist const &n, Resources const &r) {
     TRY_VOID(check_resources(n, r));
     auto const height = heights(n);
 
@@ -83,8 +83,9 @@ static Result<Schedule> height_schedule(Netlist const &n, Resources const &r) {
     return s;
 }
 
-Result<Schedule> list_schedule(Netlist const &n, Resources const &r, Clock const &clock) {
-    TRY(auto baseline, height_schedule(n, r));
+Result<Schedule> list_schedule(Netlist const &n, Resources const &r, Clock const &clock,
+                               ScheduleProgress const &progress) {
+    TRY(auto baseline, fast_schedule(n, r));
     auto const *toggle = std::getenv("MLRCS_ORDER_SEARCH");
     bool const enabled = !toggle || std::string(toggle) != "0";
     if (n.num_ops() == 0 || clock.remaining() <= 0.25) {
@@ -101,8 +102,16 @@ Result<Schedule> list_schedule(Netlist const &n, Resources const &r, Clock const
         seed.latency = baseline.latency;
         for (std::int32_t i = 0; i < graph.n; ++i) seed.step[i] = baseline.step[graph.node[i]];
     }
+    auto const publish = [&]() -> Result<Unit> {
+        if (!progress) return Unit{};
+        auto const candidate = to_schedule(n, graph, seed.step);
+        TRY_VOID(validate(n, r, candidate));
+        return progress(candidate);
+    };
+    TRY_VOID(publish());
     auto const restart_deadline = std::min(10.0, clock.budget - reserve);
     improve_schedule(graph, seed, clock, restart_deadline);
+    TRY_VOID(publish());
     OrderSearchStats stats;
     stats.initial_latency = stats.final_latency = seed.latency;
     char const *reason = "disabled";
@@ -116,6 +125,7 @@ Result<Schedule> list_schedule(Netlist const &n, Resources const &r, Clock const
                       << " final=" << stats.final_latency << " attempts=" << stats.attempts
                       << " feasible=" << stats.feasible << " accepted=" << stats.accepted << '\n';
     }
+    TRY_VOID(publish());
     auto result = to_schedule(n, graph, seed.step);
     TRY_VOID(validate(n, r, result));
     log_order_search(n, r, stats, enabled, reason);

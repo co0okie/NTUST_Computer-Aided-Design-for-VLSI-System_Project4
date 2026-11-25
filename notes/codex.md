@@ -258,3 +258,11 @@ formal5列已入codex-results.tsv，source current與snapshot逐檔一致；shar
 獨立確認主持人的左移證明成立：取最優makespan中sum starts最小者；若有ready op未選、同kind有空位，提前該op一個slot不壞precedence/resource、不增makespan但降低sum starts，矛盾。因此本題存在non-delay最優解，不應再開explicit-waiting方向；固定priority greedy仍可能做錯ready選擇（已保存3op latency3 vs2的反例，兩者均non-delay，不是mlrcs h/e反例）。完整條件與證明見non-delay-dominance.md。
 
 100個固定random DAG（3–10ops，capacity1/2），獨立subset DP比較允許partial idle與強制每kind填滿，100/100最佳latency相同；200份最佳schedule＋2份toy schedule全部check.py通過，CPU4–7共5.965秒。明細/summary/script已保存；codex-results只記mode=theory-dp摘要，不能當成hard geo/正式eval。questions Q17更新，best無strict改善。此階段完成後停止，不新開實作；此前新有效h/e差異測資、報告與完整76suite仍未完成。
+
+## 2026-11-25：11/19 作業規定移植驗收
+
+依主持人 resume2-common，merge main@236f4b9，改用 GUROBI_HOME 找 Gurobi C API、cwd 的原子輸出檔與盡早寫入合法 baseline，保留原 heuristic/ILP。完整移植設計及9項契約測試見 notes/resume2-port.md。
+
+指定10case×h/e 的 before/after 各20run，全40份原checker及保存輸出重checker OK；沒有 TIMEOUT/NO_OUTPUT，全部latency/證明狀態相同，-e 證明4/10→4/10，兩階段均e≤h。t481883；big2四組7518/3763/2518/946；C1355 e141/timelimit；layered129 h31/e30 optimal，funnel1210 h72/e71 optimal，layered1076 h=e48。claude_gap4在原版及移植版均h=e25 optimal，已明載不再是本路線有效差異測資，本輪不開新搜尋。
+
+CPU4–7/Threads4，clean build13.5→14.9秒，20run總wall325.06→334.97秒，最大單run51.27→52.67秒；GNU-time峰值RSS2,386,096→2,280,112KiB（C1355 e，約2.28→2.17GiB）。這是單次對照，不宣稱C API本身較快；超過約2GiB仍是原模型既有尚存限制。全部40筆正式結果已入codex-results.tsv，來源/command/hash/保留輸出/paired表與重驗腳本見notes/resume2-eval.md及resume2-*.json/tsv。共享best audit無嚴格改善，保留較強紀錄。完成本階段後按主持人要求commit並停止，不開新方向。

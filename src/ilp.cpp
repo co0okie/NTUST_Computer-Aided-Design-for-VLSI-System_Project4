@@ -1,81 +1,13 @@
 #include "ilp.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
-#include <fstream>
+#include <iostream>
 #include <string>
 #include <vector>
 
 #include "gurobi.hpp"
-
-namespace {
-
-// Builds an LP-format file. Long expressions are wrapped, since LP readers limit line length.
-struct LpText {
-    std::string text;
-    int terms_on_line = 0;
-    Clock const &clock;
-    bool too_large = false;
-    bool timed_out = false;
-    std::uint32_t terms_since_check = 0;
-
-    explicit LpText(Clock const &run_clock) : clock(run_clock) {}
-
-    bool stopped() {
-        // Bound text storage independently of the binary count: high-fanout graphs
-        // repeat each binary in many precedence constraints.
-        too_large = too_large || text.size() >= 128U * 1024U * 1024U;
-        timed_out = timed_out || clock.remaining() <= 4.0;
-        return too_large || timed_out;
-    }
-
-    void begin(std::string const &label) {
-        if (stopped()) return;
-        text += ' ';
-        text += label;
-        text += ':';
-        terms_on_line = 0;
-    }
-    void term(std::int64_t coef, std::string const &var) {
-        if (too_large || timed_out) return;
-        if (++terms_since_check == 4096) {
-            terms_since_check = 0;
-            if (stopped()) return;
-        }
-        if (terms_on_line == 8) {
-            text += "\n  ";
-            terms_on_line = 0;
-        }
-        text += coef < 0 ? " - " : " + ";
-        auto const a = coef < 0 ? -coef : coef;
-        if (a != 1) {
-            text += std::to_string(a);
-            text += ' ';
-        }
-        text += var;
-        ++terms_on_line;
-    }
-    void end(char const *sense, std::int64_t rhs) {
-        if (too_large || timed_out) return;
-        text += ' ';
-        text += sense;
-        text += ' ';
-        text += std::to_string(rhs);
-        text += '\n';
-    }
-};
-
-std::string x(NodeId i, std::int32_t t) { return "x" + std::to_string(i) + "_" + std::to_string(t); }
-
-Result<Unit> write_file(std::string const &path, std::string const &text) {
-    std::ofstream out(path, std::ios::binary);
-    if (!out) return err("cannot write " + path);
-    out << text;
-    if (!out) return err("cannot write " + path);
-    return Unit{};
-}
-
-} // namespace
 
 char const *exact_status_name(ExactStatus s) {
     switch (s) {
@@ -87,8 +19,8 @@ char const *exact_status_name(ExactStatus s) {
     return "?";
 }
 
-Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedule const &heuristic,
-                                   IlpOptions const &options, Clock const &clock) {
+static Result<ExactResult> build_and_solve(Netlist const &n, Resources const &r, Schedule const &heuristic,
+                                   Gurobi &gurobi, IlpOptions const &options, Clock const &clock) {
     ExactResult result;
     result.schedule = heuristic;
     result.status = ExactStatus::TimeLimit;
@@ -99,42 +31,72 @@ Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedul
         return result;
     }
 
-    if (clock.remaining() <= 4.0) return result;
-
     // Each operation can only start within [ASAP, ALAP(ub)]
     auto const early = asap(n);
     auto const late = alap(n, ub);
     for (auto const i : n.topo) result.num_vars += late[i] - early[i] + 1;
-    // A million binaries already approaches the shared machine's per-process
-    // memory budget in Gurobi; the text limit below also limits repeated terms.
     if (result.num_vars > std::min<std::int64_t>(options.max_vars, 1'000'000)) {
         result.status = ExactStatus::TooLarge;
         return result;
     }
 
-    LpText lp(clock);
-    auto const stop_building = [&]() {
-        if (!lp.stopped()) return false;
-        result.status = lp.too_large ? ExactStatus::TooLarge : ExactStatus::TimeLimit;
-        return true;
+    // Cap repeated precedence terms as well as binary storage. The old LP-text
+    // guard served the same purpose; C API storage depends on nonzeros instead.
+    std::int64_t nonzeros = result.num_vars;
+    for (auto const i : n.topo) {
+        if (clock.remaining() <= 4.0) return result;
+        auto const width = late[i] - early[i] + 1;
+        nonzeros += width; // resource rows (conservative even when redundant)
+        if (n.fanout.row(i).empty()) nonzeros += width + 1;
+        for (auto const j : n.fanin.row(i))
+            if (n.is_op(j) && late[j] >= early[i])
+                nonzeros += width + late[j] - early[j] + 1;
+        if (nonzeros > 16'000'000) {
+            result.status = ExactStatus::TooLarge;
+            return result;
+        }
+    }
+    auto const stop_building = [&] { return clock.remaining() <= 4.0; };
+    // Variables: L (index 0), then x(i, t) for t in [early[i], late[i]] at base[i] + t - early[i]
+    TRY(auto const latency_var, gurobi.add_vars(1, result.lower_bound, ub, 1, VarType::Integer));
+    std::vector<std::int32_t> base(n.size(), -1);
+    for (auto const i : n.topo) {
+        if (clock.remaining() <= 4.0) return result;
+        TRY(base[i], gurobi.add_vars(late[i] - early[i] + 1, 0, 1, 0, VarType::Binary));
+    }
+    auto const x = [&](NodeId i, std::int32_t t) { return base[i] + (t - early[i]); };
+
+    std::vector<std::int32_t> ind;
+    std::vector<double> val;
+    auto const clear = [&] {
+        ind.clear();
+        val.clear();
     };
-    lp.text = "\\ ML-RCS time-indexed model for " + n.model + "\nMinimize\n L\nSubject To\n";
     // Every operation starts exactly once
     for (auto const i : n.topo) {
-        if (stop_building()) return result;
-        lp.begin("a" + std::to_string(i));
-        for (auto t = early[i]; t <= late[i]; ++t) lp.term(1, x(i, t));
-        lp.end("=", 1);
+        if (clock.remaining() <= 4.0) return result;
+        clear();
+        for (auto t = early[i]; t <= late[i]; ++t) {
+            ind.push_back(x(i, t));
+            val.push_back(1);
+        }
+        TRY_VOID(gurobi.add_constr(ind, val, Sense::Equal, 1));
     }
     // Precedence: start(i) >= start(j) + 1 for every operation edge j -> i
     for (auto const i : n.topo) {
+        if (clock.remaining() <= 4.0) return result;
         for (auto const j : n.fanin.row(i)) {
-            if (stop_building()) return result;
             if (!n.is_op(j) || late[j] < early[i]) continue; // windows already ordered
-            lp.begin("p" + std::to_string(j) + "_" + std::to_string(i));
-            for (auto t = early[i]; t <= late[i]; ++t) lp.term(t, x(i, t));
-            for (auto t = early[j]; t <= late[j]; ++t) lp.term(-t, x(j, t));
-            lp.end(">=", 1);
+            clear();
+            for (auto t = early[i]; t <= late[i]; ++t) {
+                ind.push_back(x(i, t));
+                val.push_back(t);
+            }
+            for (auto t = early[j]; t <= late[j]; ++t) {
+                ind.push_back(x(j, t));
+                val.push_back(-t);
+            }
+            TRY_VOID(gurobi.add_constr(ind, val, Sense::GreaterEqual, 1));
         }
     }
     // Resources: at most limit[k] operations of kind k in each step
@@ -148,82 +110,86 @@ Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedul
         for (int k = 0; k < OP_KINDS; ++k) {
             auto const &ops = active[t][k];
             if (static_cast<std::int32_t>(ops.size()) <= r.limit[k]) continue;
-            lp.begin("r" + std::to_string(k) + "_" + std::to_string(t));
-            for (auto const i : ops) lp.term(1, x(i, t));
-            lp.end("<=", r.limit[k]);
+            clear();
+            for (auto const i : ops) {
+                ind.push_back(x(i, t));
+                val.push_back(1);
+            }
+            TRY_VOID(gurobi.add_constr(ind, val, Sense::LessEqual, r.limit[k]));
         }
     }
     // Latency: L >= start(i) for every operation with no operation fanout
     for (auto const i : n.topo) {
-        if (stop_building()) return result;
+        if (clock.remaining() <= 4.0) return result;
         if (!n.fanout.row(i).empty()) continue;
-        lp.begin("l" + std::to_string(i));
-        lp.term(1, "L");
-        for (auto t = early[i]; t <= late[i]; ++t) lp.term(-t, x(i, t));
-        lp.end(">=", 0);
+        clear();
+        ind.push_back(latency_var);
+        val.push_back(1);
+        for (auto t = early[i]; t <= late[i]; ++t) {
+            ind.push_back(x(i, t));
+            val.push_back(-t);
+        }
+        TRY_VOID(gurobi.add_constr(ind, val, Sense::GreaterEqual, 0));
     }
-    if (stop_building()) return result;
-    lp.text += "Bounds\n " + std::to_string(result.lower_bound) + " <= L <= " + std::to_string(ub) +
-               "\nGenerals\n L\nBinaries\n";
-    for (auto const i : n.topo) {
-        if (stop_building()) return result;
-        for (auto t = early[i]; t <= late[i]; ++t) lp.text += ' ' + x(i, t) + '\n';
-    }
-    lp.text += "End\n";
 
     // MIP start from the heuristic schedule
-    std::string start = "L " + std::to_string(ub) + "\n";
-    for (auto const i : n.topo) start += x(i, heuristic.step[i]) + " 1\n";
+    std::vector<double> start(gurobi.num_vars(), 0);
+    start[latency_var] = ub;
+    for (auto const i : n.topo) start[x(i, heuristic.step[i])] = 1;
+    TRY_VOID(gurobi.set_start(start));
+    TRY_VOID(gurobi.set_double_param("MIPGap", 0));
+    if (!options.keep_dir.empty()) TRY_VOID(gurobi.write(options.keep_dir + "/model.lp"));
 
-    if (stop_building()) return result;
-    auto dir_result = ScratchDir::create(options.keep_dir);
-    if (!dir_result) return result;
-    auto const dir = std::move(dir_result).value();
-    GurobiJob job;
-    job.model_file = dir.file("model.lp");
-    job.start_file = dir.file("start.mst");
-    job.result_file = dir.file("model.sol");
-    job.log_file = dir.file("gurobi.log");
-    if (!write_file(job.model_file, lp.text) || !write_file(job.start_file, start)) return result;
-    // Release construction buffers before the solver's large allocation phase.
-    std::string{}.swap(lp.text);
-    std::string{}.swap(start);
+    // Release construction buffers before Gurobi's presolve/root allocations.
     decltype(active){}.swap(active);
-    // Leave time for Gurobi to wind down, and for us to print the schedule
-    auto const remaining = clock.remaining();
-    if (remaining <= 4.0) return result;
-    auto const time_limit = std::max(1.0, remaining - 4.0);
-    // LogFile= (empty): no gurobi.log in the working directory; stdout is captured instead
-    job.params = {{"LogFile", ""}, {"TimeLimit", std::to_string(time_limit)}, {"MIPGap", "0"}};
-    if (options.threads > 0) job.params.push_back({"Threads", std::to_string(options.threads)});
-    job.interrupt_after = std::max(1.5, remaining - 2.5);
-    job.kill_after = std::max(2.0, remaining - 1.0);
-    auto const solved_result = run_gurobi(options.gurobi_cl, job);
+    std::vector<double>{}.swap(start);
+    std::vector<std::int32_t>{}.swap(ind);
+    std::vector<double>{}.swap(val);
+    // Leave time to write the schedule
+    if (stop_building()) return result;
+    auto const solved_result = gurobi.solve(clock.remaining() - 2.5);
     if (!solved_result) return result;
     auto const &solved = solved_result.value();
-    if (solved.status == SolveStatus::Infeasible || !solved.has_solution) return result;
+    if (solved.status == SolveStatus::Infeasible)
+        return err("Gurobi reports the ILP infeasible, but the heuristic schedule is feasible");
+    if (!solved.has_solution) {
+        result.status = ExactStatus::TimeLimit; // keep the heuristic schedule
+        return result;
+    }
 
     Schedule s;
     s.step.assign(n.size(), 0);
     for (auto const i : n.topo) {
         for (auto t = early[i]; t <= late[i]; ++t) {
-            auto const it = solved.value.find(x(i, t));
-            if (it == solved.value.end()) continue;
-            auto const value = it->second;
-            if (!std::isfinite(value) || (std::abs(value) > 1e-5 && std::abs(value - 1.0) > 1e-5))
-                return result;
+            auto const value = solved.x[x(i, t)];
+            if (!std::isfinite(value) ||
+                (std::abs(value) > 1e-5 && std::abs(value - 1.0) > 1e-5)) return result;
             if (value > 0.5) {
-                if (s.step[i] != 0) return result; // one-hot assignment is mandatory
+                if (s.step[i] != 0) return result;
                 s.step[i] = t;
             }
         }
         if (s.step[i] == 0) return result;
         s.latency = std::max(s.latency, s.step[i]);
     }
-    if (s.latency > heuristic.latency || !validate(n, r, s)) return result;
+    if (s.latency > heuristic.latency || !validate(n, r, s)) return result; // never worse than the heuristic
     result.schedule = std::move(s);
     result.status = solved.status == SolveStatus::Optimal ? ExactStatus::Optimal
                                                           : ExactStatus::TimeLimit;
     if (result.status == ExactStatus::Optimal) result.lower_bound = result.schedule.latency;
     return result;
+}
+
+// Once licensing succeeds, solver/model errors retain the independently validated
+// incumbent. They cannot turn an interrupted or ambiguous solve into a proof.
+Result<ExactResult> exact_schedule(Netlist const &n, Resources const &r, Schedule const &heuristic,
+                                   Gurobi &gurobi, IlpOptions const &options, Clock const &clock) {
+    auto solved = build_and_solve(n, r, heuristic, gurobi, options, clock);
+    if (solved) return solved;
+    std::cerr << "mlrcs: retaining heuristic: " << solved.error().message << '\n';
+    ExactResult fallback;
+    fallback.schedule = heuristic;
+    fallback.lower_bound = lower_bound(n, r);
+    fallback.status = ExactStatus::TimeLimit;
+    return fallback;
 }

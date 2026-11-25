@@ -1,0 +1,40 @@
+{
+  "command": [
+    "taskset",
+    "-c",
+    "4-7",
+    "python3",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-source/tools/eval.py",
+    "--src",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-source",
+    "--cpu",
+    "4-7",
+    "--mode",
+    "h,e",
+    "--threads",
+    "4",
+    "--keep-outputs",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2/after-outputs",
+    "--tsv",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/notes/resume2-after-results.tsv",
+    "--note",
+    "resume2-after C-API-file-contract source_sha256=7eb6083edcf8a547f2c0f2b24c478af5d848c62c8dea178a17c7e361ed5a682b",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/aoi_t481.blif:1,1,1",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/aoi_big2.blif:1,1,1",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/aoi_big2.blif:2,2,1",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/aoi_big2.blif:3,2,2",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/aoi_big2.blif:8,8,4",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/aoi_C1355.blif:3,2,2",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/hard/layered_s129_n252.blif:5,3,2",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/hard/funnel_s1210_n243.blif:4,2,1",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/benchmark/hard/layered_s1076_n851.blif:8,8,6",
+    "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/codex/testcase/claude_gap4.blif:3,3,3"
+  ],
+  "instrumentation": {
+    "file": "tools/eval.py",
+    "purpose": "per-case GNU time RSS on stderr; original scheduler source unchanged",
+    "instrumented_sha256": "8c49f98de75772c9324a5ba324a9a45f59aeae072ac5d856e0842d99e3df2f4a"
+  },
+  "TMPDIR": "/home/co0okie/repo/NTUST_Computer-Aided-Design-for-VLSI-System_Project4/shared/tmp/codex/resume2",
+  "GUROBI_HOME": "/opt/gurobi"
+}

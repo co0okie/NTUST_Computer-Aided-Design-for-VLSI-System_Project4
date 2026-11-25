@@ -1,0 +1,21 @@
+case	mode	before_latency	after_latency	before_status	after_status	before_seconds	after_seconds	before_maxrss_kb	after_maxrss_kb	latency_regressed
+aoi_t481:1,1,1	h	883	883			0.02	0.01	5132	7504	False
+aoi_t481:1,1,1	e	883	883	bound	bound	0.02	0.02	5672	10188	False
+aoi_big2:1,1,1	h	7518	7518			11.09	11.34	30856	32980	False
+aoi_big2:1,1,1	e	7518	7518	too_large	too_large	11.09	11.23	30840	34788	False
+aoi_big2:2,2,1	h	3763	3763			11.18	11.29	30904	32920	False
+aoi_big2:2,2,1	e	3763	3763	too_large	too_large	11.14	11.35	30824	34992	False
+aoi_big2:3,2,2	h	2518	2518			11.19	11.48	30576	33024	False
+aoi_big2:3,2,2	e	2518	2518	too_large	too_large	11.19	11.43	30672	35000	False
+aoi_big2:8,8,4	h	946	946			11.39	11.79	30884	33008	False
+aoi_big2:8,8,4	e	946	946	too_large	too_large	11.39	11.54	30828	34904	False
+aoi_C1355:3,2,2	h	141	141			10.94	11.14	4820	7400	False
+aoi_C1355:3,2,2	e	141	141	timelimit	timelimit	51.27	52.67	2386096	2280112	False
+layered_s129_n252:5,3,2	h	31	31			11.18	11.38	4676	6892	False
+layered_s129_n252:5,3,2	e	30	30	optimal	optimal	48.24	52.13	124292	133008	False
+funnel_s1210_n243:4,2,1	h	72	72			11.24	11.44	4488	6828	False
+funnel_s1210_n243:4,2,1	e	71	71	optimal	optimal	17.39	18.16	100872	102960	False
+layered_s1076_n851:8,8,6	h	48	48			11.40	11.54	5124	7848	False
+layered_s1076_n851:8,8,6	e	48	48	timelimit	timelimit	51.11	52.53	268956	268528	False
+claude_gap4:3,3,3	h	25	25			11.29	11.30	4620	7048	False
+claude_gap4:3,3,3	e	25	25	optimal	optimal	11.30	11.20	13656	16140	False
