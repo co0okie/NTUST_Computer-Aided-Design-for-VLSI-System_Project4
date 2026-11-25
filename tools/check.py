@@ -65,6 +65,7 @@ def read_blif(path):
 
 def check(blif, limits, output, mode):
     inputs, nodes = read_blif(blif)
+    inputs = set(inputs)
     lines = open(output).read().splitlines()
     if not lines:
         return "empty output"
