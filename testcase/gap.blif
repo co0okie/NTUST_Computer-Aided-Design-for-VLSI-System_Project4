@@ -1,4 +1,4 @@
-.model claude_gap4
+.model gap
 .inputs i0 i1 i2 i3 i4 i6 i7 i8 i9 i10
 .outputs n7 n16 n40 n52 n57 n60 n72 n78 n89 n91 n97 n102 n116 n128 n129 n137 n144 n151 n158 n163 n166 n171 n172 n173 n174 n175 n176 n177 n178 n179
 .names i4 i1 n0
