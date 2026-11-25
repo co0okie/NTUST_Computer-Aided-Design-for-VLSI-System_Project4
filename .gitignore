@@ -6,3 +6,13 @@
 /human/
 __pycache__/
 gurobi.log
+# LaTeX build files (report/)
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+!report/gap_*.out
+*.xdv
+*.synctex.gz
+.*.swp

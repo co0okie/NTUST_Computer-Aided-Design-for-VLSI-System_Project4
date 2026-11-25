@@ -1,0 +1,180 @@
+% XeLaTeX: latexmk -xelatex main.tex
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2cm]{geometry}
+\usepackage{fontspec}
+\usepackage[AutoFakeBold=2.5,AutoFakeSlant=0.2]{xeCJK}
+\setmainfont{Times New Roman}
+\setCJKmainfont{DFKai-SB}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,multirow}
+\usepackage{tikz}
+\usepackage{caption}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\captionsetup{font=small,labelfont=bf,skip=4pt}
+\setlist{nosep,leftmargin=1.5em}
+\linespread{1.15}
+\setlength{\parskip}{0.3em}
+\setlength{\parindent}{0pt}
+\renewcommand{\figurename}{圖}
+\renewcommand{\tablename}{表}
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries}{\thesection}{0.6em}{}
+\titlespacing*{\section}{0pt}{0.8em}{0.3em}
+\newcommand{\TBD}{\textcolor{red}{??}}
+
+\begin{document}
+\begin{center}
+{\Large\bfseries CAD Project 4：Resource-Constrained Scheduling}\\[0.3em]
+M11507401 李品翰
+\end{center}
+
+\section{核心觀察：latency 由瓶頸種類的閒置決定}
+
+作業附的 benchmark 電路深度只有 3--37（C6288 為 179），但單一種類的 $\lceil N_k/c_k\rceil$ 動輒數百到上萬（$N_k$、$c_k$ 為種類 $k$ 的 operation 數與單元數；以下 operation 簡稱 op，一組測試寫成「電路:AND,OR,NOT 限制」，例如 big2:1,1,1）。
+因此對瓶頸種類 $b$，$L \ge \lceil (N_b + I_b)/c_b \rceil$，其中 $I_b$ 是 $b$ 的單元在 $L$ 步內閒置的格數：
+latency 幾乎完全取決於瓶頸單元有沒有閒置。
+以「到輸出的最長路徑」為 priority 的 list scheduling，以及 critical path 與 $\lceil N_k/c_k\rceil$ 這兩個 lower bound，都看不到這件事；
+以下的 heuristic、lower bound 與 ILP 都圍繞「瓶頸單元的閒置」設計。
+
+\section{Heuristic：先建構，再以固定工作量搜尋，並自己證明最佳}
+
+\textbf{Lower bound：一個 op 做完之後，至少還要幾步。}
+critical path 只看路徑長度：op $i$ 後面接一條長 3 的鏈，$i$ 之後至少還要 3 步。
+但如果 $i$ 後面有 30 個 AND，而 AND 只有 3 個單元，即使它們彼此平行，$i$ 之後也至少還要 10 步。
+這邊把這兩種限制合在一起，為每個 op 算出「做完之後至少還要幾步」，稱為 tail（由輸出往輸入一次算完）；
+把邊反向做同樣的事，得到「最早第幾步才能做」，稱為 head。
+有了 head 與 tail，每個種類可以各自算一個 lower bound：忽略同種類 op 之間的相依，每個 op 不能早於自己的 head、做完還要 tail 步，
+每一步在可以做的 op 中優先做 tail 大的，得到的就是這個放寬問題的最佳 latency；再取各種類中最大者。
+heuristic 一旦達到 lower bound 就停止，因為此時已經證明最佳；\texttt{-e} 也直接沿用，不必呼叫 Gurobi。
+
+\textbf{建構：先餵飽瓶頸。}
+以 tail 為 priority 時，big2:1,1,1 的 AND 單元前 775 步完全閒置：OR 單元照 tail 挑的 OR，湊不齊任何一個 AND 的 fanin，瓶頸單元在開頭「餓死」。
+因此程式隨時記錄每個瓶頸 op 還有幾個祖先沒做，每一步先做「祖先最快備齊」的那個瓶頸 op 的 ready 祖先，剩下的單元再照 tail 填。
+big2:1,1,1 從 8571 降到 7518（lower bound 7512）。
+此外也把邊反向、從輸出往輸入排一次，再以目前排程的先後順序為 priority，正反兩個方向交替重排，直到不再進步。
+
+\textbf{改進：試著做到 $L-1$。}
+建構出的排程（latency $L$）若仍高於 lower bound，就用回溯搜尋問「能不能做到 $L-1$」：逐步決定每一步做哪些 op，
+只嘗試把單元填滿的選法（一定存在「有 op 可做時不讓單元閒置」的最佳排程，所以不會漏掉解）。
+每做一個決定，就更新每個未排 op「最早、最晚可以在第幾步做」，並檢查任一段時間內必須做的同種類 op 有沒有超過單元容量，超過就立刻回頭；
+失敗過的局面也會記下來，不再重複搜尋。
+搜尋完整走完仍找不到解，就證明 $L-1$ 做不到，lower bound 提高 1。
+另外也穿插「隨機擾動 priority 後重新建構」，以及在同 latency 的解之間隨機調整順序的局部搜尋。
+
+\textbf{以工作量而非時間為預算。}
+預算是 $\min(2\times10^8,\,3\times10^5 n)$ 個工作單位（$n$ 為 op 數；在我的筆電上最多約 10 秒），wall clock 只當保險。
+這讓結果與機器負載無關、可以重現，也讓表~\ref{tab:ablation} 的比較公平。
+
+\textbf{自製難測資。}
+benchmark 對 heuristic 太容易（此處的 \texttt{-h} 在 19 個電路 × 4 組限制中，有 72 組自己證明最佳），分不出方法好壞。
+我寫了 4 類生成器（分層混合、錯相長鏈、漏斗、算術電路），從約 1800 組候選中挑出 47 個電路、50 組限制（80--4800 個 op），
+最佳解以不限時的 ILP 離線求出（其中 42 組證明最佳）。表~\ref{tab:ablation} 是各設計在這組測資上的效果。
+
+\begin{table}[h]
+\centering\small
+\caption{各設計累加後，\texttt{-h} 在 50 組難測資上的 latency／已知最佳（幾何平均）。}
+\label{tab:ablation}
+\begin{tabular}{lcc}
+\toprule
+設計 & 幾何平均 & 等於最佳的組數 \\
+\midrule
+基本 list scheduling（priority 為 height） & 1.0395 & 7 \\
+tail priority、先餵飽瓶頸、正反向交替（只建構） & 1.0316 & 4 \\
+\quad + 隨機擾動重建 & 1.0048 & 35 \\
+\quad + 目標 latency 搜尋、局部搜尋 & 1.0023 & 44 \\
+\quad + 搜尋時更新可做的範圍、正反向交替（繳交版本） & \textbf{1.0015} & \textbf{46} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{ILP：反覆問「能不能在 $H$ 步內做完」}
+
+ILP 沒有直接最小化 latency，而是由上往下反覆問「能不能在 $H$ 步內做完」：
+從 $H = L_h - 1$ 開始（$L_h$ 為 heuristic 的 latency），有解就得到更好的排程，$H$ 再減 1；無解就證明目前的排程最佳。
+最終測試中需要 ILP 的 26 組，最佳解全是 $L_h$ 或 $L_h-1$，所以通常問一次就結束；
+binary search 會先問更低的 $H$，多做幾次對證明最佳沒有幫助的無解證明。
+
+0/1 變數 $y_{i,t}$ 表示「op $i$ 在第 $t$ 步（含）以前已經做了」，隨 $t$ 只會從 0 變成 1，變成 1 的那一步就是 $i$ 執行的時間（以下對每一步 $t$ 成立）：
+\begin{align*}
+&y_{i,t} \le y_{i,t+1} && \text{做了就不會變回沒做}\\
+&y_{i,t} \le y_{j,t-1} \quad \forall\, j \to i && \text{precedence：$i$ 第 $t$ 步前做了，fanin $j$ 須在前一步前做了}\\
+&\textstyle\sum_{i \in K_k} \left(y_{i,t} - y_{i,t-1}\right) \le c_k && \text{resource：$y_{i,t}-y_{i,t-1}=1$ 即「$i$ 在第 $t$ 步執行」}
+\end{align*}
+$K_k$ 為種類 $k$ 的 op。op $i$ 只可能在第 $\mathrm{head}(i)$ 到 $H-\mathrm{tail}(i)$ 步執行，範圍外的 $y$ 是常數，不必建變數。
+
+\textbf{heuristic 的用途。}
+(1)~已達 lower bound 時根本不建 ILP；(2)~它的 latency 決定從哪個 $H$ 開始問；
+(3)~head、tail 比 ASAP、ALAP 更緊，每個 op 可執行的範圍（且隨 $H$ 縮小）更小，變數也更少。
+模型超過 40 萬個變數時不求解，直接輸出 heuristic 的排程。
+
+\textbf{為什麼用「以前已經做了」當變數。}
+講義的寫法以 $x_{i,t}=1$ 表示「$i$ 在第 $t$ 步執行」，precedence 寫成一條 $\sum_t t\,x_{i,t} \ge \sum_t t\,x_{j,t}+1$，只比較兩個 op 的「平均時間」。
+Gurobi 會先把 0/1 放寬成小數求解，這時 $x$ 可以把 $i$、$j$ 各分一點到不同的步，幾乎不受先後限制。
+改成每一步各一條 $y_{i,t} \le y_{j,t-1}$ 後，放寬的解在每一步都要守先後順序，更接近真正的排程。
+
+\section{兩種方法的比較}
+
+表~\ref{tab:results} 是同一份輸入、同一組限制下，兩種模式的 latency 與 runtime（照作業說明的流程 build 與執行，Gurobi 使用 4 threads）。
+
+\begin{table}[h]
+\centering\small
+\caption{\texttt{-h} 與 \texttt{-e} 的比較（上：benchmark；下：自製測資）。LB 為程式自行求得的 lower bound；status：bound 為 heuristic 已達 LB（不需 ILP）、optimal 為 ILP 證明最佳、過大為模型超過上限而輸出 heuristic 的排程、逾時為時限內未證明。}
+\label{tab:results}
+\begin{tabular}{lrrrrrlr}
+\toprule
+case（AND,OR,NOT） & op 數 & \multicolumn{2}{c}{\texttt{-h}} & \multicolumn{3}{c}{\texttt{-e}} & LB \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-7}
+& & latency & 秒 & latency & 秒 & status & \\
+\midrule
+sample02:1,1,1 & 11 & 5 & 0.0 & 5 & 0.0 & bound & 5 \\
+C1355:2,2,1 & 643 & 179 & 1.3 & 179 & 1.3 & bound & 179 \\
+C1355:8,8,4 & 643 & 47 & 8.3 & 47 & 11.3 & optimal & 47 \\
+t481:1,1,1 & 962 & 883 & 0.3 & 883 & 0.3 & bound & 883 \\
+des:3,2,2 & 3300 & 661 & 2.3 & 661 & 2.4 & bound & 661 \\
+C6288:1,1,1 & 3551 & 1622 & 0.3 & 1622 & 0.3 & bound & 1622 \\
+big2:8,8,4 & 9647 & 945 & 1.3 & 945 & 1.3 & bound & 945 \\
+big2:1,1,1 & 9647 & 7514 & 9.9 & 7514 & 52.0 & 過大 & 7513 \\
+\midrule
+差異測資:3,3,3 & 180 & 26 & 2.7 & \textbf{25} & 3.1 & optimal & 25 \\
+分層 A:8,8,6 & 851 & 48 & 10.6 & \textbf{47} & 21.1 & optimal & 47 \\
+分層 B:12,16,7 & 1782 & 63 & 11.9 & \textbf{62} & 52.1 & 逾時 & 59 \\
+漏斗:1,2,1 & 281 & 135 & 4.2 & 135 & 52.1 & 逾時 & 133 \\
+長鏈:3,3,2 & 620 & 90 & 7.5 & 90 & 52.1 & 逾時 & 82 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+所有輸出都通過我另外寫的 checker，沒有任何一次逾時。
+\begin{itemize}
+\item \textbf{benchmark（76 組）}：\texttt{-h} 有 72 組達到 LB，平均 0.8 秒、最長 10.0 秒；\texttt{-e} 再由 ILP 證明 C1355:8,8,4，共 73 組證明最佳，平均 2.5 秒、最長 52.0 秒。未證明的只剩 big2 的 3 組，模型超過上限。
+\item \textbf{自製難測資（50 組）}：\texttt{-h} 有 46 組等於已知最佳，平均 4.5 秒、最長 12.3 秒；\texttt{-e} 證明 38 組，並在 3 組把 latency 降低 1，平均 15.6 秒、最長 52.5 秒。
+\end{itemize}
+\texttt{-e} 多花的時間全在 \texttt{-h} 未達 LB 的組；這些組的 \texttt{-h} 大多已是最佳，只是 LB 不夠緊而無法自證，所以 ILP 很少能再降低 latency。
+
+\section{差異測資（限制 3,3,3）}
+
+\texttt{testcase/gap.blif} 有 180 個 op（63 AND、59 OR、58 NOT），深度 20。
+\texttt{-h} 得到 26，\texttt{-e} 得到 25 並證明最佳，lower bound 為 24。
+
+\begin{figure}[h]
+\centering
+\input{gap_fig.tex}
+\caption{兩個排程每一步使用的單元數（白＝0、深灰＝3）。紅框：\texttt{-h} 的 OR 單元在第 16--18 步沒有任何 ready 的 OR；藍框：第 19 步起剩下的 OR，至少需要 $\lceil 22/3\rceil = 8$ 步（\texttt{-e} 為 $\lceil 21/3\rceil = 7$ 步）。}
+\label{fig:gap}
+\end{figure}
+
+\textbf{成因。}
+到第 18 步為止，兩個排程做完的 AND、NOT 數量幾乎相同（\texttt{-h} 46、41；最佳解 45、41），差別在做了\emph{哪些}。
+\texttt{-h} 挑選 op 只看 tail（自己之後還有多長），看不到哪些 AND／NOT 是後段 OR 的 fanin：
+它在第 15 步就把 fanin 已備齊的 37 個 OR 全部做完，第 16--18 步沒有新的 OR 備齊，OR 單元空轉 9 格；
+第 19 步起還剩 22 個 OR，3 個單元至少要 8 步，latency 為 26。
+最佳解前段的 OR 做得比較慢（第 15 步只做完 35 個），但選的 AND／NOT 讓第 18 步時有 41 個 OR 備齊（\texttt{-h} 只有 38 個），
+第 19 步起只剩 21 個 OR，7 步做完，latency 為 25。
+差距來自不同種類之間的供料時機，而不是單一種類的工作量。
+
+\textbf{heuristic 的優缺點。}
+優點：資源主導的電路上幾乎總能達到 lower bound，並且自己證明最佳；工作量預算讓結果可重現，runtime 也有上界。
+缺點：所有 priority 與 lower bound 都是「每個種類各自」的推理，跨種類的供料不足（如本例）只能靠搜尋碰運氣；
+目標 latency 搜尋在大電路上無法走完，因此 big2 等大電路仍有幾步的差距。
+\end{document}
