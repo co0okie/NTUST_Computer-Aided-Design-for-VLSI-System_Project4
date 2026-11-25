@@ -1546,3 +1546,37 @@ date	commit	case	mode	latency	lower_bound	heuristic	status	time	check	note
 2026-11-14 05:20	8767b2b	funnel_s1200_n281:1,2,1	e	135	135	135	optimal	20.48	OK	stage8: -e regression at 380b8dd (4 threads)
 2026-11-14 05:21	8767b2b	layered_s557_n1782:12,16,7	e	62	62	63	optimal	47.90	OK	stage8: -e regression at 380b8dd (4 threads)
 2026-11-14 05:21	8767b2b	claude_gap4:3,3,3	e	25	25	26	optimal	2.72	OK	stage8: -e regression at 380b8dd (4 threads)
+2026-11-25 15:20	6db6b80	aoi_t481:1,1,1	h	883	883			0.26	OK	stage9: C API port
+2026-11-25 15:20	6db6b80	aoi_t481:1,1,1	e	883	883	883	bound	0.26	OK	stage9: C API port
+2026-11-25 15:21	6db6b80	aoi_big2:1,1,1	h	7514	7513			10.09	OK	stage9: C API port
+2026-11-25 15:21	6db6b80	aoi_big2:1,1,1	e	7514	7513	7514	too_large	52.04	OK	stage9: C API port
+2026-11-25 15:22	6db6b80	aoi_big2:2,2,1	h	3759	3758			9.94	OK	stage9: C API port
+2026-11-25 15:23	6db6b80	aoi_big2:2,2,1	e	3759	3758	3759	too_large	52.02	OK	stage9: C API port
+2026-11-25 15:23	6db6b80	aoi_big2:3,2,2	h	2511	2508			8.84	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_big2:3,2,2	e	2511	2508	2511	too_large	52.02	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_big2:8,8,4	h	945	945			1.12	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_big2:8,8,4	e	945	945	945	bound	1.17	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_C1355:2,2,1	h	179	179			1.12	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_C1355:2,2,1	e	179	179	179	bound	1.12	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_C1355:3,2,2	h	141	141			0.77	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_C1355:3,2,2	e	141	141	141	bound	0.77	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_C1355:8,8,4	h	47	46			7.53	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_C1355:8,8,4	e	47	47	47	optimal	9.89	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_i8:8,8,4	h	95	95			1.27	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_i8:8,8,4	e	95	95	95	bound	1.27	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_des:3,2,2	h	661	661			2.22	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_des:3,2,2	e	661	661	661	bound	2.22	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_sample02:2,1,1	h	4	4			0.00	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	aoi_sample02:2,1,1	e	4	4	4	bound	0.00	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	layered_s129_n252:5,3,2	h	30	30			0.72	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	layered_s129_n252:5,3,2	e	30	30	30	bound	0.77	OK	stage9: C API port
+2026-11-25 15:24	6db6b80	layered_s557_n1782:12,16,7	h	63	59			10.34	OK	stage9: C API port
+2026-11-25 15:25	6db6b80	layered_s557_n1782:12,16,7	e	62	62	63	optimal	49.21	OK	stage9: C API port
+2026-11-25 15:25	6db6b80	funnel_s1200_n281:1,2,1	h	135	133			3.77	OK	stage9: C API port
+2026-11-25 15:26	6db6b80	funnel_s1200_n281:1,2,1	e	135	133	135	timelimit	52.05	OK	stage9: C API port
+2026-11-25 15:26	6db6b80	chains_s1101_n620:3,3,2	h	90	82			6.93	OK	stage9: C API port
+2026-11-25 15:27	6db6b80	chains_s1101_n620:3,3,2	e	90	82	90	timelimit	52.03	OK	stage9: C API port
+2026-11-25 15:27	6db6b80	layered_s1076_n851:8,8,6	h	48	45			10.24	OK	stage9: C API port
+2026-11-25 15:27	6db6b80	layered_s1076_n851:8,8,6	e	47	47	48	optimal	19.20	OK	stage9: C API port
+2026-11-25 15:28	6db6b80	claude_gap4:3,3,3	h	26	24			2.52	OK	stage9: C API port
+2026-11-25 15:28	6db6b80	claude_gap4:3,3,3	e	25	25	26	optimal	2.92	OK	stage9: C API port

@@ -319,3 +319,31 @@ opus subagent；程式 b4c6427，評估列 69212d7（note=`stage7: ...`）。
 - 剩餘差距：1,1,1 開頭 12 格（bound 11）；2,2,1 開頭 15 格（要 13，bound 12）；3,2,2 開頭 27（bound 20）、結尾 5（bound 3）。
   下一步：用 bound 窮舉找到的最佳聯集 U 當 ramp 的第一個 bundle；bound 加入時間順序的巢狀約束。
 - `-e` 回歸（380b8dd，4 threads）：big2 7514／3759／2511 too_large、8,8,4 945 bound；gap4 25 optimal。
+
+## 階段 9：符合 11/19 作業說明的移植（merge main：輸出檔、Gurobi C API、時限保護）
+
+只做移植，沒有新研究（主持人指示）。opus subagent 做 merge 與改寫（6db6b80）；驗收比對與穩健性檢查由 lead 補完。
+- 合併 main@be74347：輸出寫入 cwd 的 `<stem>_h.out`／`<stem>_e.out`（`write_output` 原子寫入）、`HardDeadline`、Gurobi C API 包裝 `Gurobi`、CMake 經 `GUROBI_HOME` link。
+  `src/ilp.cpp` 的 step formulation 可行性迴圈與 `ends_relaxation` 都改用包裝建模（不再寫 LP 文字、不再 spawn `gurobi_cl`）；參數不變
+  （`DualReductions=0 Method=2 Presolve=2`，Threads 由 `--threads`）；heuristic／bounds 完全沒動。`-e` 先寫 heuristic 的排程再進 Gurobi；
+  `-h` 在長時間改進前先寫一份（SIGTERM 於 1 s 時輸出檔已是合法排程，big2:1,1,1 latency 8364）。
+- 代表性子集（note=`stage9: C API port`，17 case × h/e，全 OK，無 TIMEOUT／NO_OUTPUT）：`-h` latency 與 stage 8 完全相同（gap4 仍 26）；
+  `-e`：big2 7514／3759／2511 too_large、8,8,4 945 bound；C1355 ×3、i8、des、t481、sample02、layered_s129 證明；C1355:8,8,4 47 optimal 9.9 s；
+  layered_s557 62 optimal 49.2 s（移植前 47.9 s）；layered_s1076 47 optimal 19.2 s；**testcase/claude_gap4:3,3,3 `-h` 26／`-e` 25 optimal 2.9 s（差異仍在）**。
+- **唯一的差異：`funnel_s1200_n281:1,2,1` `-e` 135 timelimit（移植前 4 threads 20.5 s optimal）**。追查：決定性的 horizon-134 模型，新舊列數、非零項相同，
+  只差舊版 LP 檔多一個 `dummy` 目標變數（11818 vs 11817 欄）。同一個新模型用 `gurobi_cl` 求解也要 51.2 s（1591 節點），舊模型 17.6 s（156 節點）
+  ⇒ 是 MIP 搜尋路徑的效能變異（performance variability），不是 C API 的問題；新版在 50.8 s／52 s 邊緣時證時不證。不為單一 case 加 dummy 變數。
+- 移植前後的 runtime／記憶體（`/usr/bin/time -v`；舊版 = mlrcs + gurobi_cl 子行程分開取樣）：
+
+| case | 舊：wall / mlrcs+gurobi_cl RSS | 新：wall / mlrcs RSS（含 Gurobi） |
+|---|---|---|
+| C1355:8,8,4（7517 vars，optimal） | 13.0 s / 126+156 MB | 11.8 s / 160 MB |
+| layered_s557:12,16,7（2 solves，2.1 萬 vars） | 52.1 s / 71+588 MB | 52.2 s / 945 MB |
+| funnel_s1200:1,2,1（1.2 萬 vars） | 20.6 s / 374 MB（mlrcs） | 50.8 s / 489 MB |
+| t481、C1355:3,2,2、i8:8,8,4、big2:3,2,2 | 不進 Gurobi，相同 | 相同 |
+
+  建模時間（C API）：C1355:8,8,4 2.7 ms、layered_s557 18 ms——寫 LP 檔＋gurobi_cl 讀檔的開銷消失，但在這些規模本來就不是瓶頸。
+  記憶體現在全算在 mlrcs 行程內（layered_s557 945 MB，比舊版兩行程合計 659 MB 高），仍低於 2 GB 準則。
+- 穩健性：無效 license（`GRB_LICENSE_FILE=/nonexistent`）→ 錯誤訊息＋exit 1；沒有 `GUROBI_HOME` 的 build → `-h` 正常、`-e` 錯誤＋exit 1；
+  big2:1,1,1 `--time 3` 兩種模式都寫出合法排程（7518）。壓力測試 runner 改為在工作目錄執行並檢查輸出檔（不看 stdout）；不含 `--big` 171 列：108 OK、58 乾淨錯誤、5 預期接受（`+2`／`02`／空檔／空白檔等），無 crash／逾時／NO_OUTPUT，`-h` 最長 8.46 s、`-e` 最長 52.03 s、RSS 最大 392 MB。
+- 未做：完整預設 suite 與難測資的 `-e`（主持人限定代表性子集）；Gurobi callback（即時 incumbent）。

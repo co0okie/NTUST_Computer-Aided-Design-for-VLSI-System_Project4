@@ -4,8 +4,9 @@
 usage: run_stress.py --bin MLRCS --work DIR --out RESULTS.tsv [--filter SUBSTR]
                      [--maxops N] [--big] [--cpus 2-3] [--vmem-kb 4000000]
 One TSV row per (case, mode). Inputs are generated into DIR and deleted when the next input
-starts. Every run: taskset + ulimit -v + timeout 70 + /usr/bin/time -v. Output is verified with
-tools/check.py. Needs: Gurobi on PATH (for -e rows).
+starts. Every run (cwd = DIR): taskset + ulimit -v + timeout 70 + /usr/bin/time -v. As in the
+grader, the output file in_h.out / in_e.out written in the cwd (not stdout) is verified with
+tools/check.py; exit 0 without it is NO_OUTPUT. Needs: mlrcs built with Gurobi (for -e rows).
 """
 import argparse
 import os
@@ -130,12 +131,13 @@ def main():
     ap.add_argument("--vmem-kb", type=int, default=4000000)
     ap.add_argument("--modes", default="he")
     a = ap.parse_args()
+    a.work = os.path.abspath(a.work)
     os.makedirs(a.work, exist_ok=True)
     env = dict(os.environ)
-    env["PATH"] = "/opt/gurobi/bin:" + env["PATH"]
-    env["LD_LIBRARY_PATH"] = "/opt/gurobi/lib:" + env.get("LD_LIBRARY_PATH", "")
+    a.bin = os.path.abspath(a.bin)
     blif = os.path.join(a.work, "in.blif")
-    outp = os.path.join(a.work, "out.txt")
+    outp = os.path.join(a.work, "out.txt")  # stdout (ignored, as in the grader)
+    resp = {m: os.path.join(a.work, f"in_{m}.out") for m in "he"}  # the graded output files
     errp = os.path.join(a.work, "err.txt")
     timep = os.path.join(a.work, "time.txt")
     cols = "name ops limits mode exit wall_s rss_mb latency lower_bound check class note".split()
@@ -171,12 +173,12 @@ def main():
             if "--stats" not in argv:
                 argv.append("--stats")
             shell = f"ulimit -v {a.vmem_kb}; exec taskset -c {a.cpus} /usr/bin/time -v -o {timep} timeout 70 \"$@\""
-            for p in (outp, errp, timep):
+            for p in (outp, errp, timep, *resp.values()):
                 if os.path.exists(p):
                     os.remove(p)
             t0 = time.time()
             with open(outp, "wb") as fo, open(errp, "wb") as fe:
-                subprocess.run(["bash", "-c", shell, "bash"] + argv, stdout=fo, stderr=fe, env=env)
+                subprocess.run(["bash", "-c", shell, "bash"] + argv, stdout=fo, stderr=fe, env=env, cwd=a.work)
             wall = time.time() - t0
             rss, rc, sig = parse_time_file(timep)
             err = open(errp, "rb").read().decode("utf-8", "replace")
@@ -185,11 +187,13 @@ def main():
             first_err = next((l for l in err.splitlines() if l.strip() and not l.startswith("mlrcs-stats")), "")[:140]
             chk, chk_ok = "-", True
             lat = kv.get("latency", "-")
-            if rc == 0 and mode != "x" and (c["args"] is None or "{F}" in c["args"]):
+            graded = rc == 0 and mode != "x" and (c["args"] is None or "{F}" in c["args"])
+            no_output = graded and not os.path.exists(resp[mode])
+            if graded and not no_output:
                 lim = c["lim"]
                 try:
                     chk_script = CHECK if ops < 50000 else os.path.join(HERE, "fastcheck.py")
-                    r = subprocess.run(["bash", "-c", "ulimit -v 8000000; exec python3 \"$@\"", "bash", chk_script, blif] + lim + [outp, "--mode", mode],
+                    r = subprocess.run(["bash", "-c", "ulimit -v 8000000; exec python3 \"$@\"", "bash", chk_script, blif] + lim + [resp[mode], "--mode", mode],
                                        capture_output=True, text=True, timeout=900)
                     chk = (r.stdout.strip() or r.stderr.strip()).splitlines()[0][:100] if (r.stdout.strip() or r.stderr.strip()) else f"rc{r.returncode}"
                     if r.returncode == 0:
@@ -209,6 +213,8 @@ def main():
                 cls = "CRASH"
             elif rc is not None and rc >= 128:
                 cls = "CRASH"
+            elif no_output:
+                cls = "NO_OUTPUT"
             elif rc == 0:
                 if mode == "x":
                     cls = "ACCEPTED"
@@ -231,7 +237,7 @@ def main():
             tsv.flush()
             print("\t".join(row[:8] + row[10:11]), flush=True)
     tsv.close()
-    for p in (blif, outp, errp, timep):
+    for p in (blif, outp, errp, timep, *resp.values()):
         if os.path.exists(p):
             os.remove(p)
 
